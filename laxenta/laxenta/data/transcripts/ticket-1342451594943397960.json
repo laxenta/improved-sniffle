@@ -1,0 +1,22 @@
+{
+  "ticketInfo": {
+    "userId": "953527567808356404",
+    "channelId": "1342451594943397960",
+    "guildId": "1332992704803504202",
+    "reason": "20948uqeqhwerusduddwdhwdwudwudwhd9w8dw7dwgd7wdwdwdgwgdw7dwdwdwdwdwdwdwdw",
+    "messages": [],
+    "status": "open",
+    "createdAt": 1740135802255,
+    "messageId": "1342451596633837620",
+    "claimed": false,
+    "claimedBy": null
+  },
+  "messages": [
+    {
+      "author": "Ayumi#4001",
+      "content": "<@&1332994437298655305>",
+      "timestamp": "2025-02-21T11:03:22.182Z",
+      "attachments": []
+    }
+  ]
+}

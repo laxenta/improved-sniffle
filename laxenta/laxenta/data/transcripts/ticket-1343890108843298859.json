@@ -1,0 +1,40 @@
+{
+  "ticketInfo": {
+    "userId": "1256610392860262495",
+    "channelId": "1343890108843298859",
+    "guildId": "1343881965937627156",
+    "reason": "ifga",
+    "messages": [],
+    "status": "open",
+    "createdAt": 1740478770627,
+    "messageId": "1343890110164242505",
+    "claimed": true,
+    "claimedBy": "953527567808356404"
+  },
+  "messages": [
+    {
+      "author": "Ayumi#4001",
+      "content": "",
+      "timestamp": "2025-02-25T10:19:30.534Z",
+      "attachments": []
+    },
+    {
+      "author": "me_straight",
+      "content": "hello",
+      "timestamp": "2025-02-25T10:19:43.225Z",
+      "attachments": []
+    },
+    {
+      "author": "me_straight",
+      "content": "how can i help",
+      "timestamp": "2025-02-25T10:19:45.384Z",
+      "attachments": []
+    },
+    {
+      "author": "me_straight",
+      "content": "u nigga",
+      "timestamp": "2025-02-25T10:19:46.517Z",
+      "attachments": []
+    }
+  ]
+}

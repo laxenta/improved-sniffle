@@ -1,0 +1,335 @@
+const { Collection, ActionRowBuilder, ButtonBuilder, MessageFlags } = require('discord.js');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
+const { logger } = require('../utils/logger');
+
+// MongoDB schema for button interactions
+const interactionSchema = new mongoose.Schema({
+  customId: { type: String, required: true, unique: true },
+  userIds: [String],
+  createdAt: { type: Date, default: Date.now },
+  // Add handler data to store callback information
+  handlerData: {
+    type: {
+      type: String,
+      enum: ['basic', 'custom'],
+      default: 'basic'
+    },
+    options: mongoose.Schema.Types.Mixed
+  }
+});
+
+const Interaction = mongoose.model('Interaction', interactionSchema);
+
+const handlers = new Collection();
+const cooldowns = new Collection();
+const COOLDOWN_DURATION = 100; // 100ms cooldown 
+const EXPIRY_DURATION = 10 * 60 * 1000; // 10 minutes
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // Cleanup every 5 minutes
+
+// Utility class for DM operations
+class DMChannelUtils {
+  static async safeMessageEdit(message, data) {
+    try {
+      return await message.edit(data);
+    } catch (error) {
+      if (error.code === 50001) { // Missing Access
+        logger.warn(`Missing access for DM message edit: ${error.message}`);
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  static async safeMessageDelete(message) {
+    try {
+      return await message.delete();
+    } catch (error) {
+      if (error.code === 50001) { // Missing Access
+        logger.warn(`Missing access for DM message delete: ${error.message}`);
+        return null;
+      }
+      throw error;
+    }
+  }
+}
+
+/**
+ * Registers a button handler with MongoDB persistence
+ */
+async function registerButton(customId, authorizedIds = [], callback, options = {}) {
+  try {
+    const handlerData = {
+      type: options.type || 'basic',
+      options: options
+    };
+
+    // Store in memory
+    handlers.set(customId, { 
+      callback, 
+      authorizedIds,
+      handlerData 
+    });
+
+    // Store in MongoDB
+    await Interaction.findOneAndUpdate(
+      { customId },
+      {
+        customId,
+        userIds: authorizedIds,
+        handlerData,
+        createdAt: new Date()
+      },
+      { upsert: true }
+    );
+
+    return customId;
+  } catch (error) {
+    logger.error(`Error registering button "${customId}": ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Updates the original message to disable the expired button
+ */
+async function updateMessageButtons(message, expiredCustomId) {
+  try {
+    const { ChannelType } = require('discord.js');
+    const isDM = message.channel?.type === ChannelType.DM;
+    
+    const updatedComponents = message.components.map(row => {
+      const newRow = new ActionRowBuilder();
+      
+      const updatedButtons = row.components.map(button => {
+        const newButton = ButtonBuilder.from(button);
+        if (button.customId === expiredCustomId) {
+          newButton.setDisabled(true);
+        }
+        return newButton;
+      });
+
+      return newRow.addComponents(updatedButtons);
+    });
+
+    if (isDM) {
+      // For DMs, use webhook if available
+      if (message.interaction?.webhook) {
+        await message.interaction.webhook.editMessage(message.id, { 
+          components: updatedComponents 
+        });
+      } else {
+        // Fallback to interaction update
+        await message.interaction?.update({ components: updatedComponents })
+          .catch(() => {
+            logger.warn('Failed to update DM message buttons');
+          });
+      }
+    } else {
+      await message.edit({ components: updatedComponents });
+    }
+    return true;
+  } catch (error) {
+    logger.error(`Failed to update message buttons: ${error.message}`);
+    return false;
+  }
+}
+/**
+ * Handles expired or invalid buttons silently
+ */
+async function handleExpiredButton(interaction) {
+  try {
+    const isDM = interaction.channel.type === 1;
+    
+    // First update the original message to disable the button
+    const updated = await updateMessageButtons(interaction.message, interaction.customId);
+    
+    // Silently acknowledge the interaction without sending any reply
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => {});
+    }
+
+    // Clean up from database
+    await Interaction.deleteOne({ customId: interaction.customId });
+  } catch (error) {
+    logger.error(`Failed to handle expired button: ${error.message}`);
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => {});
+    }
+  }
+}
+
+/**
+ * Handles button interactions globally silently
+ */
+async function handleButton(interaction) {
+  if (!interaction.isButton()) return;
+
+  const customId = interaction.customId;
+  const handlerData = handlers.get(customId);
+  const { ChannelType } = require('discord.js');
+
+  if (!handlerData) {
+    await handleExpiredButton(interaction);
+    return;
+  }
+
+  const { callback, authorizedIds } = handlerData;
+  const isDM = interaction.channel?.type === ChannelType.DM;
+
+  // Authorization checks
+  if (authorizedIds.length && !authorizedIds.includes(interaction.user.id)) {
+    if (!interaction.replied) {
+      try {
+        await interaction.reply({
+          content: 'Listen, you can not click other\'s command buttons <a:e:1332327203106717736> Do this command yourself to be able to use buttons; for example do a command like </search:1342786347726802944> yourself',
+          //ephemeral: !isDM
+           ephemeral: true
+        });
+      } catch (error) {
+        if (!interaction.deferred) {
+          await interaction.deferUpdate().catch(() => {});
+        }
+      }
+    }
+    return;
+  }
+
+  // Cooldown check
+  if (cooldowns.has(`${customId}-${interaction.user.id}`)) {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => {});
+    }
+    return;
+  }
+
+  try {
+    // Set cooldown
+    cooldowns.set(`${customId}-${interaction.user.id}`, Date.now());
+    setTimeout(() => cooldowns.delete(`${customId}-${interaction.user.id}`), COOLDOWN_DURATION);
+
+    if (isDM) {
+      // For DM channels, handle differently
+      await interaction.deferUpdate().catch(() => {});
+
+      // Create a wrapped interaction for DM handling
+      const wrappedInteraction = {
+        ...interaction,
+        editReply: async (data) => {
+          try {
+            // For DMs, use webhook token for edit
+            return await interaction.webhook.editMessage(interaction.message.id, data);
+          } catch (error) {
+            logger.error(`DM message edit error: ${error.message}`);
+            // If webhook edit fails, try followUp
+            await interaction.followUp({
+              content: 'Unable to update the message. Please try again.',
+              ephemeral: true
+            }).catch(() => {});
+            return null;
+          }
+        },
+        deleteReply: async () => {
+          try {
+            // For DMs, use webhook token for delete
+            return await interaction.webhook.deleteMessage(interaction.message.id);
+          } catch (error) {
+            logger.error(`DM message delete error: ${error.message}`);
+            await interaction.followUp({
+              content: 'Unable to delete the message. Please try again.',
+              ephemeral: true
+            }).catch(() => {});
+            return null;
+          }
+        },
+        followUp: interaction.followUp.bind(interaction),
+        message: interaction.message,
+        channel: interaction.channel,
+        webhook: interaction.webhook,
+        client: interaction.client,
+        user: interaction.user
+      };
+
+      await callback(wrappedInteraction);
+    } else {
+      // Normal server channel handling
+      await callback(interaction);
+    }
+  } catch (error) {
+    logger.error(`Button error "${customId}": ${error.message}`);
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => {});
+    }
+
+    // Try to send error message
+    try {
+      await interaction.followUp({
+        content: 'An error occurred while processing your request.',
+        ephemeral: true
+      });
+    } catch (followUpError) {
+      logger.error(`Failed to send error message: ${followUpError.message}`);
+    }
+  }
+}
+/**
+ * Reload button handlers from the database on startup
+ */
+async function reloadHandlers() {
+  try {
+    const interactions = await Interaction.find({});
+    for (const interaction of interactions) {
+      const { customId, userIds, handlerData } = interaction;
+      
+      // Create a callback based on handler type
+      let callback;
+      if (handlerData.type === 'basic') {
+        callback = async (interaction) => {
+          // Silently acknowledge instead of replying
+          if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate().catch(() => {});
+          }
+        };
+      } else {
+        // For custom handlers, use a placeholder that can be updated later
+        callback = async (interaction) => {
+          if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate().catch(() => {});
+          }
+        };
+      }
+
+      handlers.set(customId, {
+        callback,
+        authorizedIds: userIds,
+        handlerData
+      });
+    }
+    logger.info(`Reloaded ${interactions.length} button handlers from the database`);
+  } catch (error) {
+    logger.error(`Error reloading button handlers: ${error.message}`);
+  }
+}
+
+// Cleanup expired interactions
+setInterval(async () => {
+  try {
+    const expiryDate = new Date(Date.now() - EXPIRY_DURATION);
+    const result = await Interaction.deleteMany({ createdAt: { $lt: expiryDate } });
+    if (result.deletedCount > 0) {
+      logger.info(`Cleaned up ${result.deletedCount} expired interactions`);
+    }
+  } catch (error) {
+    logger.error(`Cleanup error: ${error.message}`);
+  }
+}, CLEANUP_INTERVAL);
+
+// Reload handlers on startup
+reloadHandlers();
+
+module.exports = {
+  registerButton,
+  handleButton,
+  handlers,
+  Interaction // Export the model for external use
+};

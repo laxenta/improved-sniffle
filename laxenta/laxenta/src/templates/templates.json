@@ -1,0 +1,155 @@
+{
+  "community": {
+    "name": "Community Hub",
+    "description": "A vibrant community server for socializing, events, and announcements.",
+    "categories": [
+      {
+        "name": "💖 | Welcome",
+        "channels": [
+          { "type": "text", "name": "👋 | welcome" },
+          { "type": "text", "name": "📜 | rules" },
+          { "type": "text", "name": "📢 | announcements" },
+          { "type": "text", "name": "📣 | updates" }
+        ]
+      },
+      {
+        "name": "ℹ️ | Information",
+        "channels": [
+          { "type": "text", "name": "📝 | info" },
+          { "type": "text", "name": "❓ | faq" },
+          { "type": "text", "name": "📰 | news" },
+          { "type": "text", "name": "📅 | events" }
+        ]
+      },
+      {
+        "name": "💬 | General",
+        "channels": [
+          { "type": "text", "name": "💬 | general-chat" },
+          { "type": "text", "name": "😄 | memes" },
+          { "type": "text", "name": "🎭 | discussions" },
+          { "type": "text", "name": "🗣️ | opinions" }
+        ]
+      },
+      {
+        "name": "🤝 | Community",
+        "channels": [
+          { "type": "text", "name": "🙋 | introductions" },
+          { "type": "text", "name": "🤗 | meetups" },
+          { "type": "text", "name": "💡 | suggestions" },
+          { "type": "text", "name": "🧩 | puzzles" }
+        ]
+      },
+      {
+        "name": "🎥 | Media",
+        "channels": [
+          { "type": "text", "name": "📷 | media-share" },
+          { "type": "text", "name": "🎞️ | video-clips" },
+          { "type": "text", "name": "🎙️ | podcasts" },
+          { "type": "text", "name": "🎵 | music" }
+        ]
+      }
+    ]
+  },
+  "gaming": {
+    "name": "Gaming Paradise",
+    "description": "A server for gamers with channels for discussions, streams, and LFG.",
+    "categories": [
+      {
+        "name": "📢 | Announcements",
+        "channels": [
+          { "type": "text", "name": "📢 | announcements" },
+          { "type": "text", "name": "📝 | patch-notes" },
+          { "type": "text", "name": "🎮 | game-updates" },
+          { "type": "text", "name": "📣 | events" }
+        ]
+      },
+      {
+        "name": "💬 | Text Channels",
+        "channels": [
+          { "type": "text", "name": "💬 | general" },
+          { "type": "text", "name": "🎮 | game-chat" },
+          { "type": "text", "name": "🔍 | lfg" },
+          { "type": "text", "name": "🤖 | bots" }
+        ]
+      },
+      {
+        "name": "🔊 | Voice Channels",
+        "channels": [
+          { "type": "voice", "name": "🔊 | General Voice" },
+          { "type": "voice", "name": "🎮 | Game Room 1" },
+          { "type": "voice", "name": "🎮 | Game Room 2" },
+          { "type": "voice", "name": "🎮 | Game Room 3" }
+        ]
+      },
+      {
+        "name": "📝 | Game Rooms",
+        "channels": [
+          { "type": "text", "name": "📝 | room-1" },
+          { "type": "text", "name": "📝 | room-2" },
+          { "type": "text", "name": "📝 | room-3" },
+          { "type": "text", "name": "📝 | room-4" }
+        ]
+      },
+      {
+        "name": "🏆 | Competitive",
+        "channels": [
+          { "type": "text", "name": "🏆 | tournaments" },
+          { "type": "text", "name": "🎯 | strategies" },
+          { "type": "text", "name": "💡 | tips" },
+          { "type": "text", "name": "📊 | stats" }
+        ]
+      }
+    ]
+  },
+  "creative": {
+    "name": "Creative Corner",
+    "description": "A server for creative minds to share art, writing, music, and collaborate.",
+    "categories": [
+      {
+        "name": "🙋 | Introductions",
+        "channels": [
+          { "type": "text", "name": "🙋 | introductions" },
+          { "type": "text", "name": "🤝 | collaborations" },
+          { "type": "text", "name": "💬 | ideas" },
+          { "type": "text", "name": "🌟 | shoutouts" }
+        ]
+      },
+      {
+        "name": "🎨 | Showcase",
+        "channels": [
+          { "type": "text", "name": "🎨 | artwork" },
+          { "type": "text", "name": "✍️ | writing" },
+          { "type": "text", "name": "🎵 | music" },
+          { "type": "text", "name": "📸 | photography" }
+        ]
+      },
+      {
+        "name": "🤝 | Collaboration",
+        "channels": [
+          { "type": "text", "name": "🤝 | find-collaborators" },
+          { "type": "text", "name": "💡 | brainstorm" },
+          { "type": "text", "name": "🧩 | challenges" },
+          { "type": "text", "name": "🎭 | roleplay" }
+        ]
+      },
+      {
+        "name": "📚 | Resources",
+        "channels": [
+          { "type": "text", "name": "📚 | tutorials" },
+          { "type": "text", "name": "🛠️ | tools" },
+          { "type": "text", "name": "📖 | inspirations" },
+          { "type": "text", "name": "💻 | resources" }
+        ]
+      },
+      {
+        "name": "😎 | Chill Zone",
+        "channels": [
+          { "type": "text", "name": "😎 | off-topic" },
+          { "type": "text", "name": "🍹 | lounge" },
+          { "type": "text", "name": "🎮 | mini-games" },
+          { "type": "voice", "name": "📺 | streaming" }
+        ]
+      }
+    ]
+  }
+}

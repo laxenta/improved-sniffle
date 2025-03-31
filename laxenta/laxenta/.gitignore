@@ -1,0 +1,30 @@
+# Environment files
+.env
+.env.*
+*.local
+
+# Dependencies
+node_modules/
+dist/
+
+# Editor settings
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+.env
+node_modules/
+dist/
+.vscode/
+ffmpeg/
+ffprobe/
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+# ngrok
+ngrok/
+ngrok.log

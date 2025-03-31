@@ -1,0 +1,22 @@
+{
+  "ticketInfo": {
+    "userId": "953527567808356404",
+    "channelId": "1351159771465646090",
+    "guildId": "1323434223650082856",
+    "reason": "test",
+    "messages": [],
+    "status": "open",
+    "createdAt": 1742211993383,
+    "messageId": "1351159772736393323",
+    "claimed": false,
+    "claimedBy": null
+  },
+  "messages": [
+    {
+      "author": "Ayumi#4001",
+      "content": "<@&1339602332421193748>",
+      "timestamp": "2025-03-17T11:46:33.155Z",
+      "attachments": []
+    }
+  ]
+}

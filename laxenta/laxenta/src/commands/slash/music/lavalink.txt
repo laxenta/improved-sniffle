@@ -1,0 +1,217 @@
+const { 
+    SlashCommandBuilder, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle 
+} = require('discord.js');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('lavalink')
+        .setDescription('Play music using Lavalink')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('play')
+                .setDescription('Play a song')
+                .addStringOption(option =>
+                    option
+                        .setName('query')
+                        .setDescription('Song name or URL')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('stop')
+                .setDescription('Stop the music'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('skip')
+                .setDescription('Skip current song'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('pause')
+                .setDescription('Pause/Resume the music'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('filter')
+                .setDescription('Apply audio filters')
+                .addStringOption(option =>
+                    option.setName('type')
+                        .setDescription('Filter type')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Bass Boost', value: 'bassboost' },
+                            { name: 'Nightcore', value: 'nightcore' },
+                            { name: '8D', value: '8d' },
+                            { name: 'Karaoke', value: 'karaoke' },
+                            { name: 'Reset', value: 'reset' }
+                        ))),
+
+    async execute(interaction) {
+        const { client, guild, member, options } = interaction;
+        const subcommand = options.getSubcommand();
+
+        // Check if user is in a voice channel
+        if (!member.voice.channel) {
+            return interaction.reply({
+                content: '❌ You must be in a voice channel!',
+                ephemeral: true
+            });
+        }
+
+        // Get or create player
+        const player = client.manager.create({
+            guild: guild.id,
+            voiceChannel: member.voice.channel.id,
+            textChannel: interaction.channel.id,
+        });
+
+        try {
+            switch (subcommand) {
+                case 'play': {
+                    await interaction.deferReply();
+                    const query = options.getString('query');
+
+                    // Search for the song
+                    const res = await client.manager.search(query, interaction.user);
+
+                    if (res.loadType === 'LOAD_FAILED') {
+                        return interaction.editReply('❌ Error loading track.');
+                    }
+
+                    if (res.loadType === 'NO_MATCHES') {
+                        return interaction.editReply('❌ No results found.');
+                    }
+
+                    // Connect to voice channel if not connected
+                    if (!player.connected) {
+                        player.connect();
+                    }
+
+                    // Handle different load types
+                    if (res.loadType === 'PLAYLIST_LOADED') {
+                        const playlist = res.playlist;
+                        player.queue.add(res.tracks);
+
+                        const embed = new EmbedBuilder()
+                            .setColor('#00ff00')
+                            .setTitle('✅ Playlist Added')
+                            .setDescription(`Added ${playlist.name} with ${res.tracks.length} tracks`)
+                            .setTimestamp();
+
+                        if (!player.playing) player.play();
+                        return interaction.editReply({ embeds: [embed] });
+                    }
+
+                    // Single track
+                    const track = res.tracks[0];
+                    player.queue.add(track);
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#00ff00')
+                        .setTitle('🎵 Track Added')
+                        .setDescription(`[${track.title}](${track.uri})`)
+                        .addFields(
+                            { name: 'Duration', value: formatTime(track.duration), inline: true },
+                            { name: 'Author', value: track.author, inline: true }
+                        )
+                        .setThumbnail(track.thumbnail || null)
+                        .setTimestamp();
+
+                    if (!player.playing) player.play();
+                    return interaction.editReply({ embeds: [embed] });
+                }
+
+                case 'stop': {
+                    if (!player.playing) {
+                        return interaction.reply('❌ Nothing is playing!');
+                    }
+                    player.destroy();
+                    return interaction.reply('⏹️ Stopped the music!');
+                }
+
+                case 'skip': {
+                    if (!player.playing) {
+                        return interaction.reply('❌ Nothing is playing!');
+                    }
+                    player.stop();
+                    return interaction.reply('⏭️ Skipped the current song!');
+                }
+
+                case 'pause': {
+                    if (!player.playing) {
+                        return interaction.reply('❌ Nothing is playing!');
+                    }
+                    player.pause(!player.paused);
+                    return interaction.reply(player.paused ? '⏸️ Paused!' : '▶️ Resumed!');
+                }
+
+                case 'filter': {
+                    if (!player.playing) {
+                        return interaction.reply({ content: '❌ Nothing is playing!', flags: 64 });
+                    }
+
+                    const filterType = options.getString('type');
+                    
+                    try {
+                        switch (filterType) {
+                            case 'bassboost':
+                                player.setEQ([
+                                    { band: 0, gain: 0.6 },
+                                    { band: 1, gain: 0.7 },
+                                    { band: 2, gain: 0.8 },
+                                    { band: 3, gain: 0.55 }
+                                ]);
+                                break;
+                            case 'nightcore':
+                                player.setFilter('timescale', { pitch: 1.2, rate: 1.1 });
+                                break;
+                            case '8d':
+                                player.setFilter('rotation', { rotationHz: 0.2 });
+                                break;
+                            case 'karaoke':
+                                player.setFilter('karaoke', {
+                                    level: 1.0,
+                                    monoLevel: 1.0,
+                                    filterBand: 220.0,
+                                    filterWidth: 100.0
+                                });
+                                break;
+                            case 'reset':
+                                player.clearEQ();
+                                player.resetFilter();
+                                break;
+                        }
+
+                        return interaction.reply({ 
+                            content: `✅ ${filterType === 'reset' ? 'Reset all filters' : `Applied ${filterType} filter`}!`,
+                            flags: 64 
+                        });
+                    } catch (filterError) {
+                        console.error('Filter error:', filterError);
+                        return interaction.reply({ 
+                            content: '❌ Error applying filter!',
+                            flags: 64 
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Music command error:', error);
+            return interaction.reply({
+                content: '❌ An error occurred while executing the command!',
+                ephemeral: true
+            });
+        }
+    }
+};
+
+function formatTime(ms) {
+    const seconds = Math.floor((ms / 1000) % 60);
+    const minutes = Math.floor((ms / (1000 * 60)) % 60);
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+
+    return hours > 0 
+        ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+        : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}

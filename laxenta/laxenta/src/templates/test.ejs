@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Auth</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #121212;
+      color: #fff;
+    }
+    .auth-card {
+      background: #282828;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #1DB954;
+      border: none;
+      padding: 10px 20px;
+      color: white;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      background: #1ed760;
+      transform: translateY(-2px);
+    }
+    .error {
+      background: #ff4444;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.9em;
+    }
+    
+    .status.connected {
+      background: #1DB954;
+      color: white;
+    }
+    
+    .status.disconnected {
+      background: #ff4444;
+      color: white;
+    }
+    
+    .status.checking {
+      background: #777;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  </style>
+  <script src="/js/authManager.js" defer></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!window.authManager.isLoggedIn()) {
+        const connectButton = document.querySelector('#connect-button');
+        connectButton.disabled = true;
+        
+        try {
+          await window.authManager.initialize();
+          connectButton.disabled = false;
+        } catch (error) {
+          console.error('Auth initialization failed:', error);
+          showError('Failed to initialize authentication');
+        }
+      }
+    });
+
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error';
+      errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
+      document.body.insertBefore(errorDiv, document.body.firstChild);
+    }
+
+    async function updateConnectionStatus() {
+      const discordStatus = document.querySelector('#discord-status .status');
+      const spotifyStatus = document.querySelector('#spotify-status .status');
+      
+      try {
+        const discordSession = await window.authManager.verifyDiscordSession();
+        discordStatus.textContent = discordSession.valid ? 'Connected' : 'Disconnected';
+        discordStatus.className = 'status ' + (discordSession.valid ? 'connected' : 'disconnected');
+      } catch (error) {
+        discordStatus.textContent = 'Error';
+        discordStatus.className = 'status disconnected';
+      }
+      
+      try {
+        const spotifySession = await window.authManager.verifySpotifySession();
+        spotifyStatus.textContent = spotifySession.valid ? 'Connected' : 'Disconnected';
+        spotifyStatus.className = 'status ' + (spotifySession.valid ? 'connected' : 'disconnected');
+      } catch (error) {
+        spotifyStatus.textContent = 'Error';
+        spotifyStatus.className = 'status disconnected';
+      }
+    }
+
+    async function handleSpotifyAuth(event) {
+      event.preventDefault();
+      const button = document.getElementById('connect-button');
+      button.disabled = true;
+      
+      try {
+        const response = await window.fetchWithAuth('/auth/spotify', {
+          method: 'GET',
+          credentials: 'same-origin'
+        });
+        
+        if (response.success) {
+          window.location.href = response.url || '/auth/spotify';
+        } else {
+          throw new Error(response.error || 'Authentication failed');
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+        showError(error.message);
+        button.disabled = false;
+      }
+    }
+
+    // Update status on page load and periodically
+    document.addEventListener('DOMContentLoaded', () => {
+      updateConnectionStatus();
+      setInterval(updateConnectionStatus, 30000);
+    });
+  </script>
+</head>
+<body>
+  <% if (error) { %>
+    <div class="error">
+      <strong>Error:</strong> <%= error %>
+    </div>
+  <% } %>
+
+  <div class="auth-card">
+    <h2>Spotify Auth</h2>
+    <p>Click below to connect your Spotify account.</p>
+    <form id="spotify-auth-form" onsubmit="handleSpotifyAuth(event)">
+      <button type="submit" id="connect-button">Connect with Spotify</button>
+    </form>
+  </div>
+
+  <div class="auth-card" id="status-card">
+    <h2>Connection Status</h2>
+    <div id="discord-status">
+      Discord: <span class="status checking">Checking...</span>
+    </div>
+    <div id="spotify-status">
+      Spotify: <span class="status checking">Checking...</span>
+    </div>
+  </div>
+
+  <div class="auth-card">
+    <h2>Debug Info</h2>
+    <p><strong>Client ID:</strong> <%= clientId %></p>
+    <p><strong>Callback URL:</strong> <%= ngrokUrl %>/callback</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,132 @@
+{
+  "1332992704803504202": {
+    "ticketChannel": "1342074076612530186",
+    "transcriptChannel": "1332996517971099648",
+    "supportRoles": [
+      "1332994437298655305"
+    ],
+    "categoryId": null,
+    "embedSettings": {
+      "color": 5793266,
+      "title": "Support Tickets",
+      "description": "Click the button below to create a ticket",
+      "thumbnail": "https://cdn.discordapp.com/icons/1332992704803504202/0d64438459ed2c6366d92226ee183e70.webp"
+    },
+    "buttonSettings": {
+      "label": "Create Ticket",
+      "emoji": "🎫",
+      "style": 1
+    },
+    "ticketSettings": {
+      "nameFormat": "ticket-{number}",
+      "welcomeMessage": "Support will be with you shortly!",
+      "maxTickets": 5,
+      "pingRoles": [],
+      "closeDelay": 5000
+    }
+  },
+  "1260534392124735498": {
+    "ticketChannel": "1342365323214585856",
+    "transcriptChannel": "1342365323214585856",
+    "supportRoles": [
+      "1316041743237513320"
+    ],
+    "categoryId": null,
+    "embedSettings": {
+      "color": 5793266,
+      "title": "Support Tickets",
+      "description": "Click the button below to create a ticket",
+      "thumbnail": "https://cdn.discordapp.com/icons/1260534392124735498/631d2b20ae77e75a3b2f842fd97ada87.webp"
+    },
+    "buttonSettings": {
+      "label": "Create Ticket",
+      "emoji": "🎫",
+      "style": 1
+    },
+    "ticketSettings": {
+      "nameFormat": "ticket-{number}",
+      "welcomeMessage": "Support will be with you shortly!",
+      "maxTickets": 5,
+      "pingRoles": [],
+      "closeDelay": 5000
+    }
+  },
+  "967716005835075644": {
+    "ticketChannel": "1071443731808526436",
+    "transcriptChannel": "1071443731808526436",
+    "supportRoles": [
+      "1331119277272600576"
+    ],
+    "categoryId": null,
+    "embedSettings": {
+      "color": 5793266,
+      "title": "Support Tickets",
+      "description": "<a:cute:1267064546586005686>  Welcome to Laxent Support! <a:bang:1327965184425332756> \n\n\nGot questions? Need assistance? We've got you covered!\n**You can add our Bot to Use All the features it have too! :3**\n\n<a:HorniBonk:1336931166271307827>  How to Open a Ticket? \nBRO Click 'Create ticket'' to start a Ticket . We'll get you sorted ASAP\n\n /cute ( Also known as Laxenta Smp) — Development/hangout/Minecraft . <a:wack:1327965151781064715> \"",
+      "thumbnail": "https://cdn.discordapp.com/icons/967716005835075644/a_a1b69ed72a3fd68ba093666deb71daaf.gif"
+    },
+    "buttonSettings": {
+      "label": "Create Ticket",
+      "emoji": "<<a:eh:1342443908189257728>",
+      "style": 1
+    },
+    "ticketSettings": {
+      "nameFormat": "ticket-{number}",
+      "welcomeMessage": "<a:wel:1342444020726501407> Please be patient! Support will be with you shortly!",
+      "maxTickets": 1,
+      "pingRoles": [],
+      "closeDelay": 5000
+    }
+  },
+  "1343881965937627156": {
+    "ticketChannel": "1343921644640407623",
+    "transcriptChannel": "1343925268225458247",
+    "supportRoles": [
+      "1343925341361541130"
+    ],
+    "categoryId": null,
+    "embedSettings": {
+      "color": 5793266,
+      "title": "Support Tickets",
+      "description": "<a:eh:1342443037371928627> Click the button below and describe your issue to create a ticket!!",
+      "thumbnail": "https://cdn.discordapp.com/icons/1343881965937627156/425bef8efd49bbe3af37acb3a0d710d9.webp"
+    },
+    "buttonSettings": {
+      "label": "Create Ticket",
+      "emoji": "<<a:eh:1342443908189257728>",
+      "style": 1
+    },
+    "ticketSettings": {
+      "nameFormat": "ticket-{number}",
+      "welcomeMessage": "<a:wel:1342444020726501407> Please be patient! Support will be with you shortly!",
+      "maxTickets": 1,
+      "pingRoles": [],
+      "closeDelay": 5000
+    }
+  },
+  "1323434223650082856": {
+    "ticketChannel": "1338591727073890434",
+    "transcriptChannel": "1338629011416547369",
+    "supportRoles": [
+      "1339602332421193748"
+    ],
+    "categoryId": null,
+    "embedSettings": {
+      "color": 5793266,
+      "title": "Support Tickets",
+      "description": "<a:eh:1342443037371928627> Click the button below and describe your issue to create a ticket!!",
+      "thumbnail": "https://cdn.discordapp.com/icons/1323434223650082856/1d9613a2bcf50e5d59e5d892966b1a43.webp"
+    },
+    "buttonSettings": {
+      "label": "Create Ticket",
+      "emoji": "<<a:eh:1342443908189257728>",
+      "style": 1
+    },
+    "ticketSettings": {
+      "nameFormat": "ticket-{number}",
+      "welcomeMessage": "<a:wel:1342444020726501407> Please be patient! Support will be with you shortly!",
+      "maxTickets": 1,
+      "pingRoles": [],
+      "closeDelay": 5000
+    }
+  }
+}

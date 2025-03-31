@@ -1,0 +1,40 @@
+{
+  "ticketInfo": {
+    "userId": "953527567808356404",
+    "channelId": "1342509125996908625",
+    "guildId": "967716005835075644",
+    "reason": "Sex pussy",
+    "messages": [],
+    "status": "open",
+    "createdAt": 1740149519158,
+    "messageId": "1342509128861356062",
+    "claimed": false,
+    "claimedBy": null
+  },
+  "messages": [
+    {
+      "author": "Ayumi#4001",
+      "content": "<@&1331119277272600576>",
+      "timestamp": "2025-02-21T14:51:58.934Z",
+      "attachments": []
+    },
+    {
+      "author": "me_straight",
+      "content": "hey",
+      "timestamp": "2025-02-21T14:52:06.462Z",
+      "attachments": []
+    },
+    {
+      "author": "me_straight",
+      "content": "jwjabdjwjsdwneje",
+      "timestamp": "2025-02-21T14:52:09.067Z",
+      "attachments": []
+    },
+    {
+      "author": "me_straight",
+      "content": "test",
+      "timestamp": "2025-02-21T14:52:10.342Z",
+      "attachments": []
+    }
+  ]
+}

@@ -54,29 +54,12 @@ echo "🔧 Configuring ngrok static domain..."
 ./ngrok config verify
 
 # Start ngrok in the background with the static domain
-# # Start ngrok in the background and silence the output
 ./ngrok http 3000 --domain=logically-inspired-chipmunk.ngrok-free.app > ngrok.log 2>&1 &
-# > ngrok.log 2>&1 &
 
 # Wait for ngrok to start
 sleep 5
 
-# Install FFmpeg if not present or not executable
-if ! command -v ./ffmpeg &> /dev/null; then
-    echo "🎵 FFmpeg not found, installing..."
-    curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o ffmpeg.tar.xz
-    tar -xJf ffmpeg.tar.xz --strip-components=1 --wildcards '*/ffmpeg' '*/ffprobe'
-    rm -f ffmpeg.tar.xz
-    chmod +x ffmpeg ffprobe
-    echo "✅ FFmpeg installed successfully."
-else
-    echo "✅ FFmpeg already exists, ensuring it's executable..."
-    chmod +x ffmpeg
-fi
-
-# Export the FFmpeg path
-export FFMPEG_PATH="$(pwd)/ffmpeg"
-echo "🎵 FFmpeg path set to: $FFMPEG_PATH"
+# 🚨 FFmpeg installation completely removed! 🚨
 
 # Install required packages
 # pnpm install express ejs spotify-web-api-node ngrok --save

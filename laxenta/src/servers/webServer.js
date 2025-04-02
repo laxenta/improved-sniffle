@@ -12,7 +12,7 @@ class WebServer {
     constructor(client) {
         this.client = client;
         this.app = express();
-        
+
         // Initialize SpotifyAuthHandler
         this.spotifyAuthHandler = new SpotifyAuthHandler({
             spotify: {
@@ -21,11 +21,11 @@ class WebServer {
             },
             baseUrl: process.env.NGROK_URL
         });
-        
+
         // Set up view engine early
         this.app.set('view engine', 'ejs');
         this.app.set('views', path.join(__dirname, '..', 'templates'));
-        
+
         // Set up middleware and auth first
         this.setupMiddleware();
         this.setupAuth();
@@ -37,19 +37,19 @@ class WebServer {
         // 1. Basic middleware first
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-        
+
         // 2. Session setup
         this.app.use(session({
             secret: process.env.SESSION_SECRET,
             resave: true,
             saveUninitialized: true,
-            store: MongoStore.create({ 
+            store: MongoStore.create({
                 mongoUrl: process.env.MONGODB_URI,
                 ttl: 7 * 24 * 60 * 60,
                 autoRemove: 'native',
                 touchAfter: 24 * 3600
             }),
-            cookie: { 
+            cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 maxAge: 7 * 24 * 60 * 60 * 1000,
                 httpOnly: true
@@ -70,12 +70,12 @@ class WebServer {
     setupTemplateRoutes() {
         const { generateTemplateRoutes } = require('./templateRouter');
         const templatesDir = path.join(__dirname, '..', 'templates');
-        
+
         // Generate routes with auth middleware
         generateTemplateRoutes(
-            this.app, 
-            templatesDir, 
-            this.client, 
+            this.app,
+            templatesDir,
+            this.client,
             this.isAuthenticated
         );
     }
@@ -124,13 +124,13 @@ class WebServer {
         passport.serializeUser((user, done) => {
             done(null, user.id);
         });
-        
+
         // Deserialize user from DB with current session info
         passport.deserializeUser(async (id, done) => {
             try {
                 const user = await User.findById(id);
                 if (!user) return done(null, false);
-                
+
                 // Add session info to user object
                 done(null, user);
             } catch (error) {
@@ -138,17 +138,17 @@ class WebServer {
             }
         });
 
-            // Add session debug middleware
-    this.app.use((req, res, next) => {
-        console.log('Detailed Session Debug:', {
-            sessionID: req.sessionID,
-            hasUser: !!req.user,
-            userSessions: req.user?.sessions?.length || 0,
-            isAuthenticated: req.isAuthenticated(),
-            session: req.session
+        // Add session debug middleware
+        this.app.use((req, res, next) => {
+            console.log('Detailed Session Debug:', {
+                sessionID: req.sessionID,
+                hasUser: !!req.user,
+                userSessions: req.user?.sessions?.length || 0,
+                isAuthenticated: req.isAuthenticated(),
+                session: req.session
+            });
+            next();
         });
-        next();
-    });
 
         // Auth routes
         this.app.get('/auth/discord', (req, res, next) => {
@@ -157,9 +157,9 @@ class WebServer {
             req.session.returnTo = returnTo;
             passport.authenticate('discord')(req, res, next);
         });
-        
-        this.app.get('/auth/discord/callback', 
-            passport.authenticate('discord', { failureRedirect: '/error' }), 
+
+        this.app.get('/auth/discord/callback',
+            passport.authenticate('discord', { failureRedirect: '/error' }),
             (req, res) => {
                 // Redirect to saved return path or dashboard
                 const returnTo = req.session.returnTo || '/dashboard';
@@ -167,28 +167,98 @@ class WebServer {
                 res.redirect(returnTo);
             }
         );
-        
+
         this.app.get('/auth/spotify', this.isAuthenticated, (req, res) => {
             const state = crypto.randomBytes(16).toString('hex');
             req.session.spotifyState = state;
             req.session.returnTo = req.query.returnTo || '/dashboard';
-            
+
             console.log('Initiating Spotify auth with state:', state);
-            
+
             const authUrl = this.spotifyAuthHandler.getAuthURL(state);
             res.redirect(authUrl);
         });
-        
+
+
+        // CALLBACK FOR SPOTIFY!
         this.app.get('/callback', this.isAuthenticated, async (req, res, next) => {
             try {
-                await this.spotifyAuthHandler.handleCallback(req, res);
+                const { code, state } = req.query;
+
+                console.log('Spotify callback received:', {
+                    state,
+                    storedState: req.session.spotifyState,
+                    hasCode: !!code,
+                    sessionID: req.sessionID
+                });
+
+                // Verify state parameter
+                if (!state || !req.session.spotifyState || state !== req.session.spotifyState) {
+                    console.error('State mismatch:', { received: state, stored: req.session.spotifyState });
+                    throw new Error('State verification failed');
+                }
+
+                // Exchange code for tokens using SpotifyAuthHandler
+                const spotifyApi = this.spotifyAuthHandler.spotifyApi;
+                const data = await spotifyApi.authorizationCodeGrant(code);
+
+                // Set access token and get user profile
+                spotifyApi.setAccessToken(data.body.access_token);
+                const profile = await spotifyApi.getMe();
+
+                // Find or create user session
+                let session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+                if (!session) {
+                    session = {
+                        sessionId: req.sessionID,
+                        ip: req.header('X-Client-IP') || req.ip,
+                        clientInfo: {
+                            browser: req.get('User-Agent') || 'unknown',
+                            os: req.get('sec-ch-ua-platform') || 'unknown',
+                            device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
+                            lastLogin: new Date()
+                        },
+                        createdAt: new Date(),
+                        lastActive: new Date()
+                    };
+                    req.user.sessions.push(session);
+                }
+
+                // Update session with Spotify data
+                session.spotify = {
+                    accessToken: data.body.access_token,
+                    refreshToken: data.body.refresh_token,
+                    expiresAt: new Date(Date.now() + data.body.expires_in * 1000),
+                    profile: {
+                        id: profile.body.id,
+                        email: profile.body.email,
+                        displayName: profile.body.display_name
+                    }
+                };
+
+                // Save user and clean up session
+                await req.user.save();
+                delete req.session.spotifyState;
+
+                console.log('Spotify auth successful:', {
+                    userId: req.user.id,
+                    sessionId: req.sessionID,
+                    spotifyId: profile.body.id
+                });
+
+                // Redirect to stored return path or dashboard
+                res.redirect(req.session.returnTo || '/dashboard');
+
             } catch (error) {
+                console.error('Spotify callback error:', {
+                    message: error.message,
+                    stack: error.stack
+                });
                 next(error);
             }
         });
-        
         this.app.post('/logout', (req, res) => {
-            req.logout(function(err) {
+            req.logout(function (err) {
                 if (err) { return next(err); }
                 req.session.destroy(() => {
                     res.clearCookie('connect.sid');
@@ -196,7 +266,7 @@ class WebServer {
                 });
             });
         });
-        
+
         // API auth verification endpoint
         this.app.get('/api/auth/verify', (req, res) => {
             // Check if user is authenticated
@@ -206,15 +276,15 @@ class WebServer {
                     error: 'session_invalid'
                 });
             }
-            
+
             // Check if the user has Spotify connected
-            const spotifyConnected = req.user.sessions && 
-                                   req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify);
-            
+            const spotifyConnected = req.user.sessions &&
+                req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify);
+
             // Get the Spotify session data
-            const spotifySession = spotifyConnected ? 
+            const spotifySession = spotifyConnected ?
                 req.user.sessions.find(s => s.sessionId === req.sessionID).spotify : null;
-            
+
             res.json({
                 valid: true,
                 user: {
@@ -228,7 +298,7 @@ class WebServer {
                 }
             });
         });
-        
+
         // Spotify token refresh endpoint
         this.app.post('/api/spotify/refresh', this.isAuthenticated, async (req, res) => {
             try {
@@ -236,18 +306,18 @@ class WebServer {
                 if (!sessionData || !sessionData.spotify) {
                     return res.status(401).json({ error: 'No Spotify connection found' });
                 }
-                
+
                 const newToken = await this.spotifyAuthHandler.refreshToken(req.user, sessionData);
-                
-                res.json({ 
+
+                res.json({
                     success: true,
-                    expiresAt: sessionData.spotify.expiresAt 
+                    expiresAt: sessionData.spotify.expiresAt
                 });
             } catch (error) {
                 res.status(500).json({ error: 'Failed to refresh token' });
             }
         });
-        
+
         // Disconnect Spotify
         this.app.post('/api/spotify/disconnect', this.isAuthenticated, async (req, res) => {
             try {
@@ -261,7 +331,7 @@ class WebServer {
                 res.status(500).json({ error: 'Failed to disconnect Spotify' });
             }
         });
-        
+
         // Middleware to protect routes
         this.app.use('/dashboard', this.isAuthenticated, this.spotifyAuthRequired, (req, res, next) => {
             next();
@@ -275,17 +345,17 @@ class WebServer {
         }
         res.redirect('/auth/discord?returnTo=' + req.originalUrl);
     }
-    
+
     // Spotify auth middleware
     spotifyAuthRequired(req, res, next) {
         // Check if user has Spotify connected in this session
-        const hasSpotify = req.user.sessions && 
-                         req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify);
-        
+        const hasSpotify = req.user.sessions &&
+            req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify);
+
         if (hasSpotify) {
             return next();
         }
-        
+
         // Redirect to Spotify auth
         res.redirect('/auth/spotify?returnTo=' + req.originalUrl);
     }
@@ -298,13 +368,13 @@ class WebServer {
                     discordId: profile.id,
                     username: profile.username,
                     email: profile.email,
-                    avatar: profile.avatar ? 
-                        `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : 
+                    avatar: profile.avatar ?
+                        `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` :
                         null,
                     sessions: []
                 });
             }
-            
+
             // Use request object to get client info
             const clientIp = req.header('X-Client-IP') || req.ip || '0.0.0.0';
             const clientInfo = {
@@ -313,7 +383,7 @@ class WebServer {
                 device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
                 lastLogin: new Date()
             };
-            
+
             // Create or update session
             let session = user.sessions.find(s => s.ip === clientIp);
             if (!session) {
@@ -328,7 +398,7 @@ class WebServer {
                 session.lastActive = new Date();
                 session.clientInfo = clientInfo;
             }
-            
+
             await user.save();
             done(null, user);
         } catch (error) {
@@ -348,11 +418,11 @@ class WebServer {
                 try {
                     // Check for X-Client-IP header
                     const clientIp = req.header('X-Client-IP') || req.ip;
-                    
+
                     // Find matching session and update sessionId and activity
-                    const session = req.user.sessions.find(s => s.ip === clientIp) || 
-                                  req.user.sessions.find(s => s.sessionId === req.sessionID);
-                    
+                    const session = req.user.sessions.find(s => s.ip === clientIp) ||
+                        req.user.sessions.find(s => s.sessionId === req.sessionID);
+
                     if (session) {
                         session.sessionId = req.sessionID;
                         session.lastActive = new Date();
@@ -388,10 +458,10 @@ class WebServer {
         // Add global error handler at the end
         this.app.use((err, req, res, next) => {
             console.error('Global error:', err);
-            
+
             res.status(err.status || 500).render('error', {
-                error: process.env.NODE_ENV === 'production' 
-                    ? 'An unexpected error occurred' 
+                error: process.env.NODE_ENV === 'production'
+                    ? 'An unexpected error occurred'
                     : {
                         message: err.message,
                         stack: err.stack,
@@ -417,18 +487,18 @@ class WebServer {
             if (!req.user || !req.sessionID) {
                 throw new Error('User not authenticated');
             }
-            
+
             const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
             if (!session || !session.spotify || !session.spotify.accessToken) {
                 throw new Error('Spotify not connected for this session');
             }
-            
+
             const spotifyApi = new this.spotifyAuthHandler.spotifyApi.constructor({
                 clientId: process.env.SPOTIFY_CLIENT_ID,
                 clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
                 redirectUri: `${process.env.NGROK_URL}/callback`
             });
-            
+
             spotifyApi.setAccessToken(session.spotify.accessToken);
             return spotifyApi;
         };
@@ -438,19 +508,19 @@ class WebServer {
             if (!req.user || !req.sessionID) {
                 return res.status(401).json({ error: 'Not authenticated' });
             }
-            
+
             try {
                 const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
                 if (!session || !session.spotify) {
                     return res.status(401).json({ error: 'Spotify not connected' });
                 }
-                
+
                 // Check if token is expired or about to expire (within 10 minutes)
                 const expiresAt = new Date(session.spotify.expiresAt);
                 if (expiresAt < new Date(Date.now() + 10 * 60 * 1000)) {
                     await this.spotifyAuthHandler.refreshToken(req.user, session);
                 }
-                
+
                 next();
             } catch (error) {
                 res.status(401).json({ error: 'Failed to refresh Spotify token' });

@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= botName %> Dashboard</title>
-    <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <meta name="client-ip" content="<%= clientIp %>">
+
 </head>
 <body data-page="dashboard">
     <div class="dashboard-container">
@@ -23,17 +22,11 @@
                         <a href="/dashboard"><i class="fas fa-home"></i> Home</a>
                     </li>
                     <li class="nav-item">
-                        <a href="/dashboard/music"><i class="fas fa-music"></i> Music</a>
-                    </li>
-                    <li class="nav-item">
                         <a href="/dashboard/playlists"><i class="fas fa-list"></i> Playlists</a>
                     </li>
                     <li class="nav-item">
                         <a href="/dashboard/liked"><i class="fas fa-heart"></i> Liked Songs</a>
                     </li>
-                    <!-- <li class="nav-item">
-                        <a href="/dashboard/settings"><i class="fas fa-cog"></i> Settings</a>
-                    </li> -->
                 </ul>
             </nav>
             
@@ -63,11 +56,11 @@
             <header class="dashboard-header">
                 <div class="search-container">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search for songs, artists or playlists...">
+                    <input type="text" id="searchInput" placeholder="Search for songs or playlists...">
                 </div>
                 <div class="user-controls">
                     <button id="refreshBtn" title="Refresh Data">
-                        <i class="fas fa-sync-alt"></i>
+                        <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                     <button id="playInDiscordBtn" title="Play in Discord">
                         <i class="fab fa-discord"></i> Play in Discord
@@ -77,16 +70,6 @@
 
             <!-- Dashboard Sections -->
             <div class="dashboard-content">
-                <!-- Recently Played Section -->
-                <section class="content-section" id="recentlyPlayed">
-                    <h2 class="section-title">Recently Played</h2>
-                    <div class="track-container" id="recentTracksContainer">
-                        <div class="loading-indicator">
-                            <i class="fas fa-spinner fa-spin"></i> Loading your recent tracks...
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Your Playlists Section -->
                 <section class="content-section" id="yourPlaylists">
                     <h2 class="section-title">Your Playlists</h2>
@@ -107,60 +90,7 @@
                     </div>
                 </section>
             </div>
-
-            <!-- Music Player Component -->
-            <div class="music-player" id="musicPlayer">
-                <div class="now-playing">
-                    <img src="/images/placeholder.png" alt="Album Cover" id="albumCover" class="album-cover">
-                    <div class="track-info">
-                        <p class="track-name" id="trackName">Not Playing</p>
-                        <p class="artist-name" id="artistName">Select a track to play</p>
-                    </div>
-                </div>
-                <div class="player-controls">
-                    <button id="prevBtn" class="control-btn">
-                        <i class="fas fa-step-backward"></i>
-                    </button>
-                    <button id="playPauseBtn" class="control-btn play-btn">
-                        <i class="fas fa-play"></i>
-                    </button>
-                    <button id="nextBtn" class="control-btn">
-                        <i class="fas fa-step-forward"></i>
-                    </button>
-                </div>
-                <div class="progress-container">
-                    <span id="currentTime" class="time">0:00</span>
-                    <div class="progress-bar">
-                        <div class="progress" id="progressBar"></div>
-                    </div>
-                    <span id="totalTime" class="time">0:00</span>
-                </div>
-                <div class="volume-container">
-                    <i class="fas fa-volume-up"></i>
-                    <input type="range" id="volumeSlider" min="0" max="100" value="80">
-                </div>
-            </div>
         </main>
-    </div>
-
-    <!-- Modal for Discord Play -->
-    <div class="modal" id="discordPlayModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Play in Discord</h3>
-                <button class="close-btn" id="closeModalBtn">×</button>
-            </div>
-            <div class="modal-body">
-                <p>Search for a song to play in your voice channel:</p>
-                <div class="discord-search">
-                    <input type="text" id="discordSearchInput" placeholder="Song name or URL...">
-                    <button id="discordSearchBtn">Search</button>
-                </div>
-                <div id="searchResults">
-                    <!-- Search results will be populated here -->
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Toast Notifications -->
@@ -168,55 +98,35 @@
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="/js/authManager.js"></script>
     <script>
-        // Store session data
-        // Store session data
-//         const sessionData = {
-//     user: {
-//         discordId: '<%- user.discordId %>',
-//         username: '<%- user.username %>',
-//         avatar: '<%- user.avatar %>'
-//     },
-//     spotify: {
-//         connected: <%- user.sessions.some(s => s.sessionId === sessionID && s.spotify) ? 'true' : 'false' %>,
-//         expiresAt: '<%- user.sessions.find(s => s.sessionId === sessionID)?.spotify?.expiresAt || "" %>'
-//     }
-// };
-
-
-        // Auth manager initialization
-        if (!window.authManager) {
-            window.authManager = new window.AuthManager();
-            window.authManager.checkAuth().then(isAuthed => {
-                if (isAuthed) {
-                    loadDashboardData();
-                }
-            });
-        } else {
-            loadDashboardData();
-        }
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is authenticated
+            if (window.authManager) {
+                window.authManager.checkAuth().then(isAuthed => {
+                    if (isAuthed) {
+                        loadDashboardData();
+                    }
+                });
+            } else {
+                loadDashboardData();
+            }
+        });
 
         // Dashboard functionality
         function loadDashboardData() {
-            // Load liked songs
+            // Load liked songs and playlists
             fetchLikedSongs();
-            
-            // Load playlists
             fetchPlaylists();
             
             // Setup event listeners
             setupEventListeners();
-            
-            // Check token expiry periodically
-            checkTokenExpiry();
         }
 
         function fetchLikedSongs() {
             fetch('/api/spotify/liked-songs', {
-                credentials: 'same-origin',
-                headers: {
-                    'X-Client-IP': document.querySelector('meta[name="client-ip"]').getAttribute('content') || ''
-                }
+                credentials: 'same-origin'
             })
             .then(response => {
                 if (!response.ok) {
@@ -252,22 +162,19 @@
             let html = '<div class="track-list">';
             
             displaySongs.forEach(item => {
-                const song = item.track;
+                const song = item.track || item;
                 html += `
                     <div class="track-item" data-uri="${song.uri}" data-id="${song.id}">
-                        <img src="${song.album.images[2]?.url || '/images/placeholder.png'}" alt="${song.album.name}" class="track-image">
+                        <img src="${song.album?.images?.[2]?.url || '/images/placeholder.png'}" alt="${song.album?.name || 'Album'}" class="track-image">
                         <div class="track-info">
                             <p class="track-name">${song.name}</p>
-                            <p class="artist-name">${song.artists.map(a => a.name).join(', ')}</p>
+                            <p class="artist-name">${song.artists?.map(a => a.name).join(', ') || 'Unknown artist'}</p>
                         </div>
                         <div class="track-actions">
-                            <button class="play-track-btn" data-uri="${song.uri}" title="Play">
-                                <i class="fas fa-play"></i>
+                            <button class="play-track-btn" data-uri="${song.uri}" title="Play on Spotify">
+                                <i class="fab fa-spotify"></i>
                             </button>
-                            <button class="queue-track-btn" data-uri="${song.uri}" title="Add to queue">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                            <button class="discord-play-btn" data-query="${song.name} ${song.artists[0].name}" title="Play in Discord">
+                            <button class="discord-play-btn" data-query="${song.name} ${song.artists?.[0]?.name || ''}" title="Play in Discord">
                                 <i class="fab fa-discord"></i>
                             </button>
                         </div>
@@ -287,7 +194,7 @@
             document.querySelectorAll('.play-track-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const uri = e.currentTarget.dataset.uri;
-                    playTrack(uri);
+                    playOnSpotify(uri);
                 });
             });
             
@@ -301,10 +208,7 @@
 
         function fetchPlaylists() {
             fetch('/api/spotify/playlists', {
-                credentials: 'same-origin',
-                headers: {
-                    'X-Client-IP': document.querySelector('meta[name="client-ip"]').getAttribute('content') || ''
-                }
+                credentials: 'same-origin'
             })
             .then(response => {
                 if (!response.ok) {
@@ -341,9 +245,9 @@
             
             displayPlaylists.forEach(playlist => {
                 html += `
-                    <div class="playlist-item" data-id="${playlist.id}">
+                    <div class="playlist-item" data-id="${playlist.id}" onclick="location.href='/dashboard/playlist/${playlist.id}'">
                         <div class="playlist-image-container">
-                            <img src="${playlist.images[0]?.url || '/images/playlist-placeholder.png'}" alt="${playlist.name}" class="playlist-image">
+                            <img src="${playlist.images?.[0]?.url || '/images/playlist-placeholder.png'}" alt="${playlist.name}" class="playlist-image">
                             <div class="playlist-hover-overlay">
                                 <button class="play-playlist-btn" data-uri="${playlist.uri}">
                                     <i class="fas fa-play"></i>
@@ -351,7 +255,7 @@
                             </div>
                         </div>
                         <p class="playlist-name">${playlist.name}</p>
-                        <p class="playlist-info">${playlist.tracks.total} tracks</p>
+                        <p class="playlist-info">${playlist.tracks?.total || 0} tracks</p>
                     </div>
                 `;
             });
@@ -364,11 +268,12 @@
             
             container.innerHTML = html;
             
-            // Add event listeners
+            // Add event listeners for play buttons - stop event propagation to prevent navigation
             document.querySelectorAll('.play-playlist-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     const uri = e.currentTarget.dataset.uri;
-                    playPlaylist(uri);
+                    playOnSpotify(uri);
                 });
             });
         }
@@ -392,132 +297,33 @@
                 showToast('Dashboard refreshed', 'success');
             });
 
-            // Play in Discord modal
+            // Play in Discord button
             document.getElementById('playInDiscordBtn').addEventListener('click', () => {
-                openDiscordPlayModal();
-            });
-
-            // Close modal
-            document.getElementById('closeModalBtn').addEventListener('click', () => {
-                document.getElementById('discordPlayModal').style.display = 'none';
-            });
-
-            // Discord search
-            document.getElementById('discordSearchBtn').addEventListener('click', () => {
-                const query = document.getElementById('discordSearchInput').value.trim();
-                if (query) {
-                    searchForDiscord(query);
+                const query = prompt('Enter a song name to play in Discord:');
+                if (query && query.trim()) {
+                    playInDiscord(query.trim());
                 }
             });
             
             // Logout
             document.getElementById('logoutBtn').addEventListener('click', () => {
-                logout();
-            });
-
-            // Music player controls
-            document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
-            document.getElementById('prevBtn').addEventListener('click', playPrevious);
-            document.getElementById('nextBtn').addEventListener('click', playNext);
-            document.getElementById('volumeSlider').addEventListener('input', setVolume);
-        }
-
-        function playTrack(uri) {
-            // Placeholder for Spotify Web Playback functionality
-            // This would typically interact with the Spotify Web Playback SDK
-            console.log('Playing track:', uri);
-            
-            // For now, just update the UI
-            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
-            showToast('Playing track', 'success');
-            
-            // Fake track info for demonstration
-            updateNowPlaying({
-                name: 'Track Title',
-                artists: [{ name: 'Artist Name' }],
-                album: { images: [{ url: '/images/placeholder.png' }] }
+                if (confirm('Are you sure you want to log out?')) {
+                    window.authManager.logout();
+                }
             });
         }
 
-        function playPlaylist(uri) {
-            // Placeholder for playlist playback
-            console.log('Playing playlist:', uri);
-            showToast('Playing playlist', 'success');
-        }
-
-        function togglePlayPause() {
-            const btn = document.getElementById('playPauseBtn');
-            if (btn.innerHTML.includes('play')) {
-                btn.innerHTML = '<i class="fas fa-pause"></i>';
-                showToast('Playing', 'info');
-            } else {
-                btn.innerHTML = '<i class="fas fa-play"></i>';
-                showToast('Paused', 'info');
-            }
-        }
-
-        function playPrevious() {
-            showToast('Previous track', 'info');
-        }
-
-        function playNext() {
-            showToast('Next track', 'info');
-        }
-
-        function setVolume() {
-            const volume = document.getElementById('volumeSlider').value;
-            console.log('Setting volume:', volume);
-        }
-
-        function updateNowPlaying(track) {
-            document.getElementById('trackName').textContent = track.name;
-            document.getElementById('artistName').textContent = track.artists.map(a => a.name).join(', ');
-            document.getElementById('albumCover').src = track.album.images[0]?.url || '/images/placeholder.png';
-        }
-
-        function openDiscordPlayModal() {
-            document.getElementById('discordPlayModal').style.display = 'block';
-            document.getElementById('discordSearchInput').focus();
-        }
-
-        function searchForDiscord(query) {
-            // Show loading
-            const resultsContainer = document.getElementById('searchResults');
-            resultsContainer.innerHTML = '<div class="loading-indicator"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
-            
-            // Simulate search results (this would be a real API call)
-            setTimeout(() => {
-                resultsContainer.innerHTML = `
-                    <div class="search-results-list">
-                        <div class="search-result-item">
-                            <img src="/images/placeholder.png" class="result-image">
-                            <div class="result-info">
-                                <p class="result-title">Sample Track</p>
-                                <p class="result-artist">Sample Artist</p>
-                            </div>
-                            <button class="play-result-btn" data-query="${query}">
-                                <i class="fas fa-play"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                // Add event listener to play button
-                document.querySelectorAll('.play-result-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const query = e.currentTarget.dataset.query;
-                        playInDiscord(query);
-                    });
-                });
-            }, 1000);
+        function playOnSpotify(uri) {
+            // Open Spotify with the URI
+            window.open(`spotify:${uri.replace('spotify:', '')}`, '_blank');
+            showToast('Opening in Spotify...', 'success');
         }
 
         function playInDiscord(query) {
             fetch('/api/music/play', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Client-IP': document.querySelector('meta[name="client-ip"]').getAttribute('content') || ''
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ query }),
                 credentials: 'same-origin'
@@ -527,68 +333,13 @@
                 if (data.error) {
                     showToast(data.error, 'error');
                 } else {
-                    showToast('Now playing in Discord', 'success');
-                    // Close modal if open
-                    document.getElementById('discordPlayModal').style.display = 'none';
+                    showToast('Now playing in Discord: ' + query, 'success');
                 }
             })
             .catch(error => {
                 console.error('Error playing in Discord:', error);
                 showToast('Failed to play in Discord', 'error');
             });
-        }
-
-        function checkTokenExpiry() {
-            if (sessionData.spotify.connected && sessionData.spotify.expiresAt) {
-                const expiresAt = new Date(sessionData.spotify.expiresAt);
-                const now = new Date();
-                const timeUntilExpiry = expiresAt - now;
-                
-                // If token expires within 10 minutes, refresh it
-                if (timeUntilExpiry < 10 * 60 * 1000) {
-                    refreshSpotifyToken();
-                } else {
-                    // Schedule next check
-                    const checkDelay = Math.min(timeUntilExpiry - 10 * 60 * 1000, 30 * 60 * 1000);
-                    setTimeout(checkTokenExpiry, checkDelay);
-                }
-            }
-        }
-
-        function refreshSpotifyToken() {
-            fetch('/api/spotify/refresh', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'X-Client-IP': document.querySelector('meta[name="client-ip"]').getAttribute('content') || ''
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to refresh token');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Token refreshed successfully');
-                sessionData.spotify.expiresAt = data.expiresAt;
-                
-                // Schedule next check
-                setTimeout(checkTokenExpiry, 5 * 60 * 1000);
-            })
-            .catch(error => {
-                console.error('Error refreshing token:', error);
-                showToast('Session expired. Please reconnect to Spotify.', 'error');
-                setTimeout(() => {
-                    window.location.href = '/auth/spotify?returnTo=' + encodeURIComponent(window.location.pathname);
-                }, 2000);
-            });
-        }
-
-        function logout() {
-            if (confirm('Are you sure you want to log out?')) {
-                window.authManager.logout();
-            }
         }
 
         function showToast(message, type = 'info') {
@@ -632,15 +383,6 @@
                 }, 300);
             }, 5000);
         }
-
-        // Close modal if clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('discordPlayModal');
-            if (event.target === modal) {
-                modal.style.display = "none";
-            }
-        }
     </script>
-    <script src="/laxenta/src/public/js/authManager.js"></script>
 </body>
 </html>

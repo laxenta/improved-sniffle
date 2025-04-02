@@ -866,16 +866,16 @@
     <!-- Navigation Bar -->
 <nav class="navbar">
     <div class="navbar-brand">
-        <img src="<%= avatar %>" alt="Bot Logo" class="brand-logo">
+        <img src="<%= botAvatar %>" alt="Bot Logo" class="brand-logo">
         <span class="brand-name"><%= botName %></span>
     </div>
     <div class="navbar-links">
-        <a href="/commands"><i class="fas fa-terminal"></i> Commands</a>
+        <!-- <a href="/commands"><i class="fas fa-terminal"></i> Commands</a> -->
         <a href="/support"><i class="fas fa-headset"></i> Support</a>
         <% if (isAuthenticated) { %>
             <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
             <% 
-            // Check if user has Spotify connected in current session
+            <!-- // Check if user has Spotify connected in current session -->
             const hasSpotifySession = user.sessions && 
                 user.sessions.some(s => s.sessionId === sessionID && s.spotify);
             if (!hasSpotifySession) { 
@@ -889,7 +889,7 @@
     <% if (isAuthenticated) { %>
         <div class="user-dropdown">
             <div class="user-profile">
-                <img src="<%= user.avatar %>" 
+                <img src="<%= user.avatarURL %>" 
                      alt="User Avatar" class="user-avatar">
                 <span class="discord-tag"><%= user.username %></span>
             </div>
@@ -897,7 +897,7 @@
                 <a href="/dashboard"><i class="fas fa-home"></i> Dashboard</a>
                 <a href="/profile"><i class="fas fa-user"></i> Profile</a>
                 <% 
-                // Check if user has Spotify connected in current session
+                <!-- // Check if user has Spotify connected in current session -->
                 const hasSpotifySession = user.sessions && 
                     user.sessions.some(s => s.sessionId === sessionID && s.spotify);
                 if (hasSpotifySession) { 
@@ -926,7 +926,7 @@
 <main class="main-content">
     <!-- Hero Section -->
     <section class="hero-section animate-fadeInUp">
-        <img src="<%= avatar %>" alt="Bot Avatar" class="bot-avatar">
+        <img src="<%= botAvatar %>" alt="Bot Avatar" class="bot-avatar">
         <h1 class="bot-title"><%= botName %></h1>
         <p class="bot-subtitle">Experience high-quality music with Spotify integration, advanced queue management, and seamless Discord integration.</p>
         
@@ -969,6 +969,21 @@
             </div>
         </section>
     <% } %>
+
+    <!-- <% if (nowPlaying && nowPlaying.length > 0) { %>
+        <section class="now-playing">
+            <% nowPlaying.forEach(player => { %>
+                <div class="player-card">
+                    <img src="<%= player.track.thumbnail %>" alt="<%= player.track.title %>">
+                    <div class="track-info">
+                        <h3><%= player.track.title %></h3>
+                        <p><%= player.track.author %></p>
+                        <p>Playing in <%= player.guildName %></p>
+                    </div>
+                </div>
+            <% }); %>
+        </section>
+    <% } %> -->
 
     <!-- Features Grid -->
     <section class="feature-grid animate-fadeInUp delay-4">
@@ -1017,7 +1032,7 @@
     <div class="footer-content">
         <div class="footer-brand">
             <div class="footer-logo">
-                <img src="<%= avatar %>" alt="Bot Logo" class="brand-logo">
+                <img src="<%= botAvatar %>" alt="Bot Logo" class="brand-logo">
                 <span class="footer-brand-text"><%= botName %></span>
             </div>
             <p class="footer-description">Elevating your Discord music experience with (free) Premium features and high-quality audio.</p>

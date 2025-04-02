@@ -1,4 +1,5 @@
-const SpotifyWebApi = require('spotify-web-api-node');
+//spotifyOAUTH
+// const SpotifyWebApi = require('spotify-web-api-node');
 const User = require('../models/User');
 
 class SpotifyAuthHandler {
@@ -32,49 +33,54 @@ class SpotifyAuthHandler {
                 hasUser: !!req.user
             });
 
+            if (!req.sessionID || !req.session.userToken) {
+                throw new Error('Invalid session state');
+            }
+
             if (req.query.state !== req.session.spotifyState) {
-                throw new Error('State mismatch, possible CSRF attempt.');
+                throw new Error('State mismatch');
             }
 
             const data = await this.spotifyApi.authorizationCodeGrant(req.query.code);
-            console.log('Token exchange successful.');
-
             this.spotifyApi.setAccessToken(data.body.access_token);
             const spotifyUser = await this.spotifyApi.getMe();
-            console.log('Got Spotify user info:', spotifyUser.body.id);
 
-            // Find or reuse an existing session
-            let session = req.user.sessions.find(s => s.sessionId === req.sessionID || (s.spotify && s.spotify.userId === spotifyUser.body.id));
+            let session = req.user.sessions.find(s => 
+                s.sessionId === req.sessionID && 
+                s.token === req.session.userToken
+            );
 
             if (!session) {
-                console.warn('Creating new session for Spotify user:', spotifyUser.body.id);
-                session = {
+                console.error('No matching session found:', {
                     sessionId: req.sessionID,
-                    ip: req.ip,
-                    createdAt: new Date(),
-                    lastActive: new Date(),
-                    clientInfo: {
-                        browser: req.get('User-Agent') || 'unknown',
-                        os: req.get('sec-ch-ua-platform') || 'unknown',
-                        device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop'
-                    },
-                    spotify: {}
-                };
-                req.user.sessions.push(session);
-            } else {
-                console.log('Updating existing session for Spotify user:', spotifyUser.body.id);
+                    userSessions: req.user.sessions.map(s => ({
+                        id: s.sessionId,
+                        ip: s.ip
+                    }))
+                });
+                throw new Error('Session not found');
             }
 
-            // Update session with new tokens
             session.spotify = {
                 accessToken: data.body.access_token,
                 refreshToken: data.body.refresh_token,
                 expiresAt: new Date(Date.now() + data.body.expires_in * 1000),
-                userId: spotifyUser.body.id
+                userId: spotifyUser.body.id,
+                profile: {
+                    id: spotifyUser.body.id,
+                    email: spotifyUser.body.email,
+                    displayName: spotifyUser.body.display_name
+                }
             };
+            session.lastActive = new Date();
 
             await req.user.save();
-            console.log('User session updated successfully.');
+            
+            console.log('Spotify auth success:', {
+                userId: req.user.id,
+                sessionId: session.sessionId,
+                spotifyId: spotifyUser.body.id
+            });
 
             delete req.session.spotifyState;
             res.redirect(req.session.returnTo || '/dashboard');

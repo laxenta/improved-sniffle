@@ -140,8 +140,6 @@ function generateTemplateRoutes(app, templatesDir, client, authMiddleware = null
                 const startTime = process.hrtime();
 
                 try {
-
-
                     const nowPlaying = Array.from(client.guilds.cache.values())
                     .map(guild => {
                         const player = client.manager?.players?.get(guild.id);
@@ -164,6 +162,15 @@ function generateTemplateRoutes(app, templatesDir, client, authMiddleware = null
                         };
                     })
                     .filter(Boolean);
+
+                    // Add session debug logging
+                    console.log('Template Session Debug:', {
+                        sessionID: req.sessionID,
+                        hasUser: !!req.user,
+                        userSessions: req.user?.sessions?.length || 0,
+                        currentSession: req.user?.sessions?.find(s => s.sessionId === req.sessionID)?.sessionId
+                    });
+
                     // Base template data to render stuff 
                     // ( important )
                     const templateData = {
@@ -171,12 +178,15 @@ function generateTemplateRoutes(app, templatesDir, client, authMiddleware = null
                             ...req.user,
                             avatarURL: req.user.avatar 
                                 ? `https://cdn.discordapp.com/avatars/${req.user.discordId}/${req.user.avatar}`
-                                : null
+                                : null,
+                            currentSession: req.user.sessions.find(s => s.sessionId === req.sessionID)
                         } : null,
                         isAuthenticated: req.isAuthenticated(),
                         sessionID: req.sessionID,
-                        hasSpotify: req.user?.sessions?.some(s =>
-                            s.sessionId === req.sessionID && s.spotify?.accessToken
+                        hasSpotify: req.user?.sessions?.some(s => 
+                            s.sessionId === req.sessionID && 
+                            s.spotify?.accessToken && 
+                            new Date(s.spotify.expiresAt) > new Date()
                         ),
                         botName: client.user?.username || 'Bot',
                         botAvatar: client.user?.displayAvatarURL({ dynamic: true, size: 1024 }),

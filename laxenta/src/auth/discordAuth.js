@@ -1,3 +1,4 @@
+//discord OAUTH
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const User = require('../models/User');
@@ -25,6 +26,14 @@ class DiscordAuthHandler {
     async handleAuth(req, accessToken, refreshToken, profile, done) {
         try {
             let user = await User.findOne({ discordId: profile.id });
+            const clientIp = req.header('X-Client-IP') || req.ip;
+            const clientInfo = {
+                browser: req.get('User-Agent') || 'unknown',
+                os: req.get('sec-ch-ua-platform') || 'unknown',
+                device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
+                lastLogin: new Date()
+            };
+    
             const userData = {
                 discordId: profile.id,
                 username: profile.username,
@@ -33,27 +42,59 @@ class DiscordAuthHandler {
                 discord: { 
                     accessToken, 
                     refreshToken,
-                    tokenExpires: Date.now() + 604800000 // Discord tokens expire in 7 days
+                    tokenExpires: Date.now() + 604800000
                 },
                 authStatus: { discord: true }
             };
-
+    
             if (!user) {
                 user = await User.create(userData);
             } else {
                 Object.assign(user, userData);
-                await user.save();
             }
-
-            // Generate session token
-            const sessionToken = await user.generateSessionToken(
-                req.headers['user-agent'] || 'unknown',
-                user.discordId
+    
+            // Find or create session using sessionID
+            let session = user.sessions.find(s => 
+                s.sessionId === req.sessionID || 
+                s.ip === clientIp
             );
-
-            req.session.userToken = sessionToken;
-            req.session.userId = user.id;
+    
+            if (session) {
+                // Update existing session
+                session.sessionId = req.sessionID; // Always set correct sessionId
+                session.ip = clientIp;
+                session.lastActive = new Date();
+                session.clientInfo = clientInfo;
+                session.isActive = true;
+            } else {
+                // Create new session with proper sessionId
+                session = {
+                    sessionId: req.sessionID, // Always set sessionId
+                    ip: clientIp,
+                    clientInfo,
+                    isActive: true,
+                    createdAt: new Date(),
+                    lastActive: new Date()
+                };
+                user.sessions.push(session);
+            }
+    
+            // Clean up old inactive sessions
+            const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+            user.sessions = user.sessions.filter(s => 
+                s.isActive || 
+                (new Date() - new Date(s.lastActive)) < TWO_WEEKS
+            );
+    
+            await user.save();
             
+            console.log('Discord auth success:', {
+                userId: user.id,
+                sessionId: req.sessionID,
+                sessionCount: user.sessions.length,
+                clientIp
+            });
+    
             return done(null, user);
         } catch (error) {
             console.error('Discord auth error:', error);

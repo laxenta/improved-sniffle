@@ -38,33 +38,35 @@ class WebServer {
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
 
-        // 2. Session setup
+        // 2. Session setup with consistent settings
         this.app.use(session({
             secret: process.env.SESSION_SECRET,
-            resave: true,
-            saveUninitialized: true,
+            resave: false, // Changed to false to prevent unnecessary rewrites
+            saveUninitialized: false, // Changed to false for better session handling
             store: MongoStore.create({
                 mongoUrl: process.env.MONGODB_URI,
-                ttl: 7 * 24 * 60 * 60,
+                ttl: 14 * 24 * 60 * 60, // 14 days
                 autoRemove: 'native',
                 touchAfter: 24 * 3600
             }),
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
-                maxAge: 7 * 24 * 60 * 60 * 1000,
+                maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
                 httpOnly: true
             }
         }));
 
-        // 3. Session debug middleware
-        this.app.use((req, res, next) => {
-            console.log('Session Debug:', {
-                sessionID: req.sessionID,
-                hasSession: !!req.session,
-                cookie: req.session?.cookie
+        // 3. Debug middleware (optional, for development only)
+        if (process.env.NODE_ENV !== 'production') {
+            this.app.use((req, res, next) => {
+                console.log('Session Debug:', {
+                    sessionID: req.sessionID,
+                    hasSession: !!req.session,
+                    cookie: req.session?.cookie
+                });
+                next();
             });
-            next();
-        });
+        }
     }
 
     setupTemplateRoutes() {
@@ -76,7 +78,7 @@ class WebServer {
             this.app,
             templatesDir,
             this.client,
-            this.isAuthenticated
+            this.isAuthenticated.bind(this) // Bind 'this' to ensure correct context
         );
     }
 
@@ -85,7 +87,7 @@ class WebServer {
         this.app.use(passport.initialize());
         this.app.use(passport.session());
 
-        // 2. Passport configuration
+        // 2. Passport configuration - Only configure once
         passport.serializeUser((user, done) => {
             done(null, user.id);
         });
@@ -100,16 +102,18 @@ class WebServer {
             }
         });
 
-        // 3. Auth debug middleware
-        this.app.use((req, res, next) => {
-            console.log('Auth Debug:', {
-                sessionID: req.sessionID,
-                hasUser: !!req.user,
-                userSessions: req.user?.sessions?.length || 0,
-                isAuthenticated: req.isAuthenticated?.() || false
+        // 3. Auth debug middleware (for development only)
+        if (process.env.NODE_ENV !== 'production') {
+            this.app.use((req, res, next) => {
+                console.log('Auth Debug:', {
+                    sessionID: req.sessionID,
+                    hasUser: !!req.user,
+                    userSessions: req.user?.sessions?.length || 0,
+                    isAuthenticated: req.isAuthenticated?.() || false
+                });
+                next();
             });
-            next();
-        });
+        }
 
         // 4. Discord Strategy setup
         passport.use(new DiscordStrategy({
@@ -120,37 +124,12 @@ class WebServer {
             passReqToCallback: true  // Enable request object in callback
         }, this.handleDiscordAuth.bind(this)));
 
-        // Serialize the entire user object to store in session ( passport conifgs )
-        passport.serializeUser((user, done) => {
-            done(null, user.id);
-        });
+        // 5. Set up auth routes
+        this.setupAuthRoutes();
+    }
 
-        // Deserialize user from DB with current session info
-        passport.deserializeUser(async (id, done) => {
-            try {
-                const user = await User.findById(id);
-                if (!user) return done(null, false);
-
-                // Add session info to user object
-                done(null, user);
-            } catch (error) {
-                done(error);
-            }
-        });
-
-        // Add session debug middleware
-        this.app.use((req, res, next) => {
-            console.log('Detailed Session Debug:', {
-                sessionID: req.sessionID,
-                hasUser: !!req.user,
-                userSessions: req.user?.sessions?.length || 0,
-                isAuthenticated: req.isAuthenticated(),
-                session: req.session
-            });
-            next();
-        });
-
-        // Auth routes
+    setupAuthRoutes() {
+        // Discord OAuth routes
         this.app.get('/auth/discord', (req, res, next) => {
             // Only use query parameter for return URL
             const returnTo = req.query.returnTo || '/dashboard';
@@ -168,96 +147,138 @@ class WebServer {
             }
         );
 
-        this.app.get('/auth/spotify', this.isAuthenticated, (req, res) => {
+        // Spotify OAuth routes
+        this.app.get('/auth/spotify', this.isAuthenticated.bind(this), (req, res) => {
             const state = crypto.randomBytes(16).toString('hex');
             req.session.spotifyState = state;
             req.session.returnTo = req.query.returnTo || '/dashboard';
-
-            console.log('Initiating Spotify auth with state:', state);
-
-            const authUrl = this.spotifyAuthHandler.getAuthURL(state);
-            res.redirect(authUrl);
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error before Spotify auth:', err);
+                    return res.redirect('/error?message=session_error');
+                }
+                
+                console.log('Initiating Spotify auth with state:', state);
+                const authUrl = this.spotifyAuthHandler.getAuthURL(state);
+                res.redirect(authUrl);
+            });
         });
 
-
-        // CALLBACK FOR SPOTIFY!
-        this.app.get('/callback', this.isAuthenticated, async (req, res, next) => {
+        // Spotify callback - completely refactored for reliability
+        this.app.get('/callback', async (req, res, next) => {
             try {
                 const { code, state } = req.query;
-
-                console.log('Spotify callback received:', {
-                    state,
-                    storedState: req.session.spotifyState,
-                    hasCode: !!code,
-                    sessionID: req.sessionID
-                });
-
-                // Verify state parameter
-                if (!state || !req.session.spotifyState || state !== req.session.spotifyState) {
-                    console.error('State mismatch:', { received: state, stored: req.session.spotifyState });
-                    throw new Error('State verification failed');
+                
+                // 1. Basic validation
+                if (!req.isAuthenticated() || !req.user) {
+                    console.error('No authenticated user for Spotify callback');
+                    return res.redirect('/auth/discord');
                 }
-
-                // Exchange code for tokens using SpotifyAuthHandler
-                const spotifyApi = this.spotifyAuthHandler.spotifyApi;
-                const data = await spotifyApi.authorizationCodeGrant(code);
-
-                // Set access token and get user profile
-                spotifyApi.setAccessToken(data.body.access_token);
-                const profile = await spotifyApi.getMe();
-
-                // Find or create user session
-                let session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-                if (!session) {
-                    session = {
+                
+                if (!state || !req.session.spotifyState) {
+                    console.error('Missing state parameters:', {
+                        queryState: state,
+                        sessionState: req.session.spotifyState
+                    });
+                    return res.redirect('/dashboard');
+                }
+                
+                // 2. State validation
+                if (state !== req.session.spotifyState) {
+                    console.error('State mismatch:', {
+                        queryState: state,
+                        sessionState: req.session.spotifyState
+                    });
+                    return res.redirect('/dashboard?error=state_mismatch');
+                }
+                
+                // 3. Get Spotify tokens
+                const data = await this.spotifyAuthHandler.spotifyApi.authorizationCodeGrant(code);
+                const accessToken = data.body.access_token;
+                const refreshToken = data.body.refresh_token;
+                const expiresIn = data.body.expires_in;
+                
+                // 4. Get Spotify user profile
+                this.spotifyAuthHandler.spotifyApi.setAccessToken(accessToken);
+                const spotifyUser = await this.spotifyAuthHandler.spotifyApi.getMe();
+                
+                // 5. Find the user's current session
+                let userSession = req.user.sessions.find(s => s.sessionId === req.sessionID);
+                
+                // 6. If no session exists for this sessionId, create one
+                if (!userSession) {
+                    console.log('Creating new session for user:', {
+                        userId: req.user.id,
+                        sessionId: req.sessionID
+                    });
+                    
+                    userSession = {
                         sessionId: req.sessionID,
                         ip: req.header('X-Client-IP') || req.ip,
                         clientInfo: {
                             browser: req.get('User-Agent') || 'unknown',
-                            os: req.get('sec-ch-ua-platform') || 'unknown',
-                            device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
-                            lastLogin: new Date()
+                            lastActive: new Date()
                         },
                         createdAt: new Date(),
                         lastActive: new Date()
                     };
-                    req.user.sessions.push(session);
+                    
+                    req.user.sessions.push(userSession);
                 }
-
-                // Update session with Spotify data
-                session.spotify = {
-                    accessToken: data.body.access_token,
-                    refreshToken: data.body.refresh_token,
-                    expiresAt: new Date(Date.now() + data.body.expires_in * 1000),
+                
+                // 7. Update session with Spotify data
+                userSession.spotify = {
+                    accessToken: accessToken,
+                    refreshToken: refreshToken,
+                    expiresAt: new Date(Date.now() + expiresIn * 1000),
+                    userId: spotifyUser.body.id,
                     profile: {
-                        id: profile.body.id,
-                        email: profile.body.email,
-                        displayName: profile.body.display_name
+                        id: spotifyUser.body.id,
+                        displayName: spotifyUser.body.display_name,
+                        email: spotifyUser.body.email
                     }
                 };
-
-                // Save user and clean up session
+                userSession.lastActive = new Date();
+                
+                // 8. Save user with updated session
                 await req.user.save();
+                
+                // 9. Update template data
+                req.app.locals.currentSession = {
+                    id: req.sessionID,
+                    hasSpotify: true
+                };
+                
+                // 10. Clean up session and redirect
+                const returnTo = req.session.returnTo || '/dashboard';
                 delete req.session.spotifyState;
-
-                console.log('Spotify auth successful:', {
-                    userId: req.user.id,
-                    sessionId: req.sessionID,
-                    spotifyId: profile.body.id
+                delete req.session.returnTo;
+                req.session.spotifySuccess = true;
+                
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Session save error after Spotify auth:', err);
+                    }
+                    res.redirect(returnTo);
                 });
-
-                // Redirect to stored return path or dashboard
-                res.redirect(req.session.returnTo || '/dashboard');
-
+                
             } catch (error) {
-                console.error('Spotify callback error:', {
-                    message: error.message,
-                    stack: error.stack
-                });
-                next(error);
+                console.error('Spotify callback error:', error);
+                res.redirect('/error?message=' + encodeURIComponent(error.message));
             }
         });
-        this.app.post('/logout', (req, res) => {
+
+        // Logout route
+        this.app.post('/logout', (req, res, next) => {
+            if (req.user && req.sessionID) {
+                // Mark this session as inactive
+                const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+                if (session) {
+                    session.isActive = false;
+                    req.user.save().catch(err => console.error('Error saving user on logout:', err));
+                }
+            }
+            
             req.logout(function (err) {
                 if (err) { return next(err); }
                 req.session.destroy(() => {
@@ -270,20 +291,18 @@ class WebServer {
         // API auth verification endpoint
         this.app.get('/api/auth/verify', (req, res) => {
             // Check if user is authenticated
-            if (!req.isAuthenticated()) {
+            if (!req.isAuthenticated() || !req.user) {
                 return res.json({
                     valid: false,
                     error: 'session_invalid'
                 });
             }
 
-            // Check if the user has Spotify connected
-            const spotifyConnected = req.user.sessions &&
-                req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify);
-
-            // Get the Spotify session data
-            const spotifySession = spotifyConnected ?
-                req.user.sessions.find(s => s.sessionId === req.sessionID).spotify : null;
+            // Find the current session
+            const currentSession = req.user.sessions.find(s => s.sessionId === req.sessionID);
+            
+            // Check if the session exists and has Spotify connected
+            const spotifyConnected = currentSession && currentSession.spotify;
 
             res.json({
                 valid: true,
@@ -292,15 +311,15 @@ class WebServer {
                     username: req.user.username,
                     authStatus: {
                         discord: true,
-                        spotify: spotifyConnected
+                        spotify: !!spotifyConnected
                     },
-                    spotify: spotifySession
+                    spotify: spotifyConnected ? currentSession.spotify : null
                 }
             });
         });
 
         // Spotify token refresh endpoint
-        this.app.post('/api/spotify/refresh', this.isAuthenticated, async (req, res) => {
+        this.app.post('/api/spotify/refresh', this.isAuthenticated.bind(this), async (req, res) => {
             try {
                 const sessionData = req.user.sessions.find(s => s.sessionId === req.sessionID);
                 if (!sessionData || !sessionData.spotify) {
@@ -314,12 +333,13 @@ class WebServer {
                     expiresAt: sessionData.spotify.expiresAt
                 });
             } catch (error) {
+                console.error('Token refresh error:', error);
                 res.status(500).json({ error: 'Failed to refresh token' });
             }
         });
 
         // Disconnect Spotify
-        this.app.post('/api/spotify/disconnect', this.isAuthenticated, async (req, res) => {
+        this.app.post('/api/spotify/disconnect', this.isAuthenticated.bind(this), async (req, res) => {
             try {
                 const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
                 if (session && session.spotify) {
@@ -332,10 +352,8 @@ class WebServer {
             }
         });
 
-        // Middleware to protect routes
-        this.app.use('/dashboard', this.isAuthenticated, this.spotifyAuthRequired, (req, res, next) => {
-            next();
-        });
+        // Middleware to protect routes that require both Discord and Spotify
+        this.app.use('/dashboard', this.isAuthenticated.bind(this), this.spotifyAuthMiddleware.bind(this));
     }
 
     // Authentication middleware
@@ -343,26 +361,46 @@ class WebServer {
         if (req.isAuthenticated()) {
             return next();
         }
-        res.redirect('/auth/discord?returnTo=' + req.originalUrl);
+        res.redirect('/auth/discord?returnTo=' + encodeURIComponent(req.originalUrl));
     }
 
-    // Spotify auth middleware
-    spotifyAuthRequired(req, res, next) {
-        // Check if user has Spotify connected in this session
-        const hasSpotify = req.user.sessions &&
-            req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify);
-
-        if (hasSpotify) {
-            return next();
+    // Spotify auth middleware - checks if Spotify is connected for this session
+    spotifyAuthMiddleware(req, res, next) {
+        if (!req.user) {
+            return res.redirect('/auth/discord?returnTo=' + encodeURIComponent(req.originalUrl));
         }
 
+        // Get the current session
+        const currentSession = req.user.sessions.find(s => s.sessionId === req.sessionID);
+        
+        // Check if Spotify is connected for this session
+        if (currentSession && currentSession.spotify) {
+            // Session has Spotify connected, proceed
+            return next();
+        }
+        
+        // Store current URL for redirect after auth
+        req.session.returnTo = req.originalUrl;
+        
         // Redirect to Spotify auth
-        res.redirect('/auth/spotify?returnTo=' + req.originalUrl);
+        res.redirect('/auth/spotify?returnTo=' + encodeURIComponent(req.originalUrl));
     }
 
     async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
         try {
+            // Find or create user
             let user = await User.findOne({ discordId: profile.id });
+            
+            // Get client info for session tracking
+            const clientIp = req.header('X-Client-IP') || req.ip || '0.0.0.0';
+            const clientInfo = {
+                browser: req.get('User-Agent') || 'unknown',
+                os: req.get('sec-ch-ua-platform') || 'unknown',
+                device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
+                lastLogin: new Date()
+            };
+
+            // Create user if not exists
             if (!user) {
                 user = new User({
                     discordId: profile.id,
@@ -375,73 +413,79 @@ class WebServer {
                 });
             }
 
-            // Use request object to get client info
-            const clientIp = req.header('X-Client-IP') || req.ip || '0.0.0.0';
-            const clientInfo = {
-                browser: req.get('User-Agent') || 'unknown',
-                os: req.get('sec-ch-ua-platform') || 'unknown',
-                device: req.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
-                lastLogin: new Date()
-            };
+            // Update basic user info
+            user.username = profile.username;
+            user.email = profile.email;
+            user.avatar = profile.avatar ?
+                `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` :
+                null;
 
-            // Create or update session
-            let session = user.sessions.find(s => s.ip === clientIp);
-            if (!session) {
-                user.sessions.push({
-                    sessionId: null,
+            // Find existing session by sessionID or IP
+            let session = user.sessions.find(s => s.sessionId === req.sessionID || s.ip === clientIp);
+            
+            if (session) {
+                // Update existing session
+                session.sessionId = req.sessionID; // Always update with current sessionID
+                session.ip = clientIp;
+                session.clientInfo = clientInfo;
+                session.lastActive = new Date();
+                session.isActive = true;
+            } else {
+                // Create new session
+                session = {
+                    sessionId: req.sessionID,
                     ip: clientIp,
                     clientInfo,
+                    isActive: true,
                     createdAt: new Date(),
                     lastActive: new Date()
-                });
-            } else {
-                session.lastActive = new Date();
-                session.clientInfo = clientInfo;
+                };
+                user.sessions.push(session);
             }
+            
+            // Clean up old/inactive sessions - keep only active ones and those less than 2 weeks old
+            const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+            user.sessions = user.sessions.filter(s => 
+                s.isActive || (s.lastActive && new Date(s.lastActive) > twoWeeksAgo)
+            );
 
             await user.save();
             done(null, user);
         } catch (error) {
+            console.error('Discord auth error:', error);
             done(error);
         }
     }
 
     setup() {
-        // Basic setup
-        // this.app.use(express.json());
-        // this.app.use(express.urlencoded({ extended: true }));
+        // Serve static files
         this.app.use(express.static(path.join(__dirname, '..', 'public')));
 
         // Update session data on requests
         this.app.use(async (req, res, next) => {
             if (req.user && req.sessionID) {
                 try {
-                    // Check for X-Client-IP header
-                    const clientIp = req.header('X-Client-IP') || req.ip;
-
-                    // Find matching session and update sessionId and activity
-                    const session = req.user.sessions.find(s => s.ip === clientIp) ||
-                        req.user.sessions.find(s => s.sessionId === req.sessionID);
-
+                    // Find session by sessionID
+                    const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+                    
                     if (session) {
-                        session.sessionId = req.sessionID;
+                        // Update last active timestamp
                         session.lastActive = new Date();
+                        
+                        // Only save if we found and updated a session
                         await req.user.save();
                     }
                 } catch (error) {
-                    console.error('Error updating session:', error);
+                    console.error('Error updating session activity:', error);
                 }
             }
             next();
         });
 
-        // Remove the manual route definitions for /, /dashboard, and /error
-        // as they are now handled by templateRouter
-
-        // Essential API endpoints for Spotify and music
+        // Set up API routes
         this.setupApiRoutes();
 
-        // Add auth error logging middleware before the global error handler
+        // Add auth error logging middleware
         this.app.use((err, req, res, next) => {
             console.error('Auth Error:', {
                 message: err.message,
@@ -449,13 +493,13 @@ class WebServer {
                 session: {
                     spotifyState: req.session?.spotifyState,
                     returnTo: req.session?.returnTo,
-                    isAuthenticated: req.isAuthenticated()
+                    isAuthenticated: req.isAuthenticated?.()
                 }
             });
             next(err);
         });
 
-        // Add global error handler at the end
+        // Add global error handler
         this.app.use((err, req, res, next) => {
             console.error('Global error:', err);
 
@@ -470,7 +514,8 @@ class WebServer {
                 botName: this.client.user?.username || 'Discord Bot',
                 user: req.user,
                 isAuthenticated: !!req.user,
-                hasSpotify: !!req.user?.spotify?.accessToken,
+                hasSpotify: req.user && req.user.sessions && 
+                    req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify),
                 clientId: process.env.SPOTIFY_CLIENT_ID,
                 ngrokUrl: process.env.NGROK_URL,
                 baseUrl: process.env.BASE_URL,
@@ -482,7 +527,7 @@ class WebServer {
     }
 
     setupApiRoutes() {
-        // Get Spotify client for user's session
+        // Helper function to get Spotify client for user's session
         const getSpotifyClientForUser = (req) => {
             if (!req.user || !req.sessionID) {
                 throw new Error('User not authenticated');
@@ -528,7 +573,7 @@ class WebServer {
         };
 
         // Liked songs with fresh token check
-        this.app.get('/api/spotify/liked-songs', this.isAuthenticated, ensureFreshSpotifyToken, async (req, res) => {
+        this.app.get('/api/spotify/liked-songs', this.isAuthenticated.bind(this), ensureFreshSpotifyToken, async (req, res) => {
             try {
                 const spotifyApi = getSpotifyClientForUser(req);
                 const data = await spotifyApi.getMySavedTracks({ limit: 50 });
@@ -540,7 +585,7 @@ class WebServer {
         });
 
         // Playlists with fresh token check
-        this.app.get('/api/spotify/playlists', this.isAuthenticated, ensureFreshSpotifyToken, async (req, res) => {
+        this.app.get('/api/spotify/playlists', this.isAuthenticated.bind(this), ensureFreshSpotifyToken, async (req, res) => {
             try {
                 const spotifyApi = getSpotifyClientForUser(req);
                 const data = await spotifyApi.getUserPlaylists();
@@ -552,7 +597,7 @@ class WebServer {
         });
 
         // Play in Discord
-        this.app.post('/api/music/play', this.isAuthenticated, ensureFreshSpotifyToken, async (req, res) => {
+        this.app.post('/api/music/play', this.isAuthenticated.bind(this), ensureFreshSpotifyToken, async (req, res) => {
             try {
                 const { query } = req.body;
                 const user = await this.client.users.fetch(req.user.discordId);
@@ -599,41 +644,3 @@ class WebServer {
 }
 
 module.exports = WebServer;
-
-// Updated the /api/auth/verify endpoint:
-
-// Now returns a proper error response with valid: false when not authenticated
-// Includes an error code session_invalid that matches what AuthManager.js expects
-// Structures the response data to match what the client expects
-
-
-// Updated the /api/spotify/refresh endpoint:
-
-// Now returns the expiresAt value in the response, which AuthManager.js uses to schedule token refreshes
-
-
-// Added support for the X-Client-IP header:
-
-// AuthManager.js sends this header in the verify request
-// WebServer.js now checks for and uses this header when updating sessions
-
-
-// Improved session return handling:
-
-// Now checks both the query parameter and sessionStorage for the returnTo URL
-// Matches the client-side logic of storing the returnTo path
-
-
-// Modified the token refresh middleware:
-
-// Changed the refresh buffer to 10 minutes to match the client's TOKEN_REFRESH_BUFFER
-
-
-// Ensured consistent error handling:
-
-// Updated error responses to better match what AuthManager.js expects
-
-
-
-// These changes should make the server and client work together more seamlessly.
-//  The AuthManager.js will now properly interpret the responses from the server, and the authentication flow should work as expected.

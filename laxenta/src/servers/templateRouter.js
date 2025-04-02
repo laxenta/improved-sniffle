@@ -3,7 +3,8 @@ const path = require('path');
 const ejs = require('ejs');
 const { validateHeaderValue } = require('http');
 const { url } = require('inspector');
-
+// IMPORTANT--------/\:3
+// Templates should now use user.avatarURL for user avatar and botAvatar for bot avatar
 /**
  * Validates an EJS template file
  * @param {string} templatePath Path to template file

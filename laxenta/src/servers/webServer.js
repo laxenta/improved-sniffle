@@ -150,7 +150,6 @@ class WebServer {
         next();
     });
 
-
         // Auth routes
         this.app.get('/auth/discord', (req, res, next) => {
             // Only use query parameter for return URL
@@ -339,8 +338,8 @@ class WebServer {
 
     setup() {
         // Basic setup
-        this.app.use(express.json());
-        this.app.use(express.urlencoded({ extended: true }));
+        // this.app.use(express.json());
+        // this.app.use(express.urlencoded({ extended: true }));
         this.app.use(express.static(path.join(__dirname, '..', 'public')));
 
         // Update session data on requests

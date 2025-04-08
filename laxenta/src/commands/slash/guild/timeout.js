@@ -61,7 +61,7 @@ module.exports = {
     ),
   async execute(interaction) {
     // Check permissions (require ModerateMembers)
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+    if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ModerateMembers)) {
       return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
     }
 

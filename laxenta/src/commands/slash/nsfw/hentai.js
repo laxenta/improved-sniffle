@@ -4,7 +4,7 @@ const hmtai = new HMtai();
 const { registerButton } = require('../../../handlers/buttonHandler.js');
 const { logger } = require('../../../utils/logger');
 const tags = {
-  wallpaper: hmtai.sfw.wallpaper,
+  wallpaper: hmtai.nsfw.hentai,
   anal: hmtai.nsfw.anal,
   ass: hmtai.nsfw.ass,
   bdsm: hmtai.nsfw.bdsm,
@@ -26,8 +26,8 @@ const tags = {
   cuckold: hmtai.nsfw.cuckold,
   blowjob: hmtai.nsfw.blowjob,
   boobjob: hmtai.nsfw.boobjob,
-  footjob: hmtai.nsfw.footjob,
-  handjob: hmtai.nsfw.handjob,
+  footjob: hmtai.nsfw.footjoob,
+  handjob: hmtai.nsfw.handjoob,
   boobs: hmtai.nsfw.boobs,
   thighs: hmtai.nsfw.thighs,
   pussy: hmtai.nsfw.pussy,
@@ -53,12 +53,12 @@ module.exports = {
         .setDescription('Hentai tag (leave empty for a random tag)')
         .setRequired(false)
         .setAutocomplete(true)
-    )
-    .addBooleanOption(option =>
-      option.setName('video')
-        .setDescription('Only fetch video content (.mp4 or .gif)')
-        .setRequired(false)
     ),
+    // .addBooleanOption(option =>
+    //   option.setName('video')
+    //     .setDescription('Only fetch video content (.mp4 or .gif)')
+    //     .setRequired(false)
+    //  ),
 
   async execute(interaction) {
     // Determine if the response should be public.

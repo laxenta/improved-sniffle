@@ -717,63 +717,6 @@ async function handleConnect(interaction) {
     });
 }
 
-async function handleLiked(interaction, user) {
-    try {
-        const spotifyApi = new SpotifyWebApi({
-            clientId: process.env.SPOTIFY_CLIENT_ID,
-            clientSecret: process.env.SPOTIFY_CLIENT_SECRET
-        });
-
-        spotifyApi.setAccessToken(user.spotify.accessToken);
-        
-        if (user.isSpotifyTokenExpired()) {
-            spotifyApi.setRefreshToken(user.spotify.refreshToken);
-            const data = await spotifyApi.refreshAccessToken();
-            user.spotify.accessToken = data.body.access_token;
-            user.spotify.expiresAt = new Date(Date.now() + data.body.expires_in * 1000);
-            await user.save();
-            spotifyApi.setAccessToken(data.body.access_token);
-        }
-
-        const likedSongs = await spotifyApi.getMySavedTracks();
-        
-        // Initialize Lavalink player if not exists
-        const player = interaction.client.manager.create({
-            guild: interaction.guild.id,
-            voiceChannel: interaction.member.voice.channel.id,
-            textChannel: interaction.channel.id,
-        });
-
-        if (!player.connected) {
-            player.connect();
-        }
-
-        const tracks = await Promise.all(
-            likedSongs.body.items.map(async (item) => {
-                const query = `${item.track.name} ${item.track.artists[0].name}`;
-                const res = await interaction.client.manager.search(query);
-                return res.tracks[0];
-            })
-        );
-
-        tracks.filter(track => track !== undefined).forEach(track => player.queue.add(track));
-        
-        if (!player.playing) {
-            player.play();
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle('🎵 Added Liked Songs to Queue')
-            .setDescription(`Added ${tracks.length} songs from your Spotify liked songs`)
-            .setColor('#1DB954');
-
-        await interaction.editReply({ embeds: [embed] });
-    } catch (error) {
-        console.error('Error playing liked songs:', error);
-        await interaction.editReply('❌ Error playing your liked songs!');
-    }
-}
-
 async function handlePlaylists(interaction, user) {
     try {
         const spotifyApi = new SpotifyWebApi({

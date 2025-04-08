@@ -5,6 +5,7 @@ const path = require('path');
 const SpotifyAuthHandler = require('../auth/spotifyAuth');
 const DiscordAuthManager = require('../auth/discordAuth');
 const MongoStore = require('connect-mongo');
+const User = require('../models/User');
 
 class WebServer {
     constructor(client) {
@@ -35,6 +36,19 @@ class WebServer {
         this.setupAuth();
         this.setupTemplateRoutes();
         this.setup();
+
+        // Setup hourly session cleanup
+        setInterval(async () => {
+            try {
+                const users = await User.find({});
+                for (const user of users) {
+                    await user.cleanupSessions();
+                }
+                console.log('Hourly session cleanup completed');
+            } catch (error) {
+                console.error('Session cleanup error:', error);
+            }
+        }, 60 * 60 * 1000); // Run every hour
     }
 
     setupMiddleware() {

@@ -25,17 +25,45 @@ class SpotifyAuthManager {
         return this.spotifyApi.createAuthorizeURL(scopes, state);
     }
 
-    // Handle the OAuth callback
-    async handleCallback(code) {
-        const data = await this.spotifyApi.authorizationCodeGrant(code);
-        
-        return {
-            accessToken: data.body.access_token,
-            refreshToken: data.body.refresh_token,
-            expiresIn: data.body.expires_in
-        };
-    }
+// Handle the OAuth callback
+async handleCallbackRequest(req, res) {
+    try {
+        if (!req.session || !req.isAuthenticated()) {
+            console.error('No session or not authenticated');
+            return res.redirect('/auth/discord');
+        }
 
+        const { code, state } = req.query;
+
+        if (!state || state !== req.session.spotifyState) {
+            console.error('State mismatch or missing');
+            return res.redirect('/dashboard?error=invalid_state');
+        }
+
+        // Get tokens
+        const tokens = await this.handleCallback(code);
+        const profile = await this.getUserProfile(tokens.accessToken);
+
+        // Clean up any existing Spotify sessions for this user
+        req.user.sessions = req.user.sessions.filter(s =>
+            s.sessionId === req.sessionID || !s.spotify
+        );
+
+        // Update current session
+        await this.updateUserSession(req.user, req.sessionID, tokens, profile);
+
+        const returnTo = req.session.returnTo || '/dashboard';
+        delete req.session.spotifyState;
+        delete req.session.returnTo;
+
+        await req.session.save();
+        res.redirect(returnTo);
+
+    } catch (error) {
+        console.error('Spotify callback error:', error);
+        res.redirect('/error?message=' + encodeURIComponent(error.message));
+    }
+}
     // Get user profile once authenticated
     async getUserProfile(accessToken) {
         this.spotifyApi.setAccessToken(accessToken);
@@ -99,46 +127,8 @@ class SpotifyAuthManager {
         });
 
         // Spotify callback route
-        app.get('/callback', async (req, res) => {
-            try {
-                const { code, state } = req.query;
-                
-                // Security checks
-                if (!req.isAuthenticated() || !req.user) {
-                    return res.redirect('/auth/discord');
-                }
-                
-                if (!state || state !== req.session.spotifyState) {
-                    return res.redirect('/error?message=state_mismatch');
-                }
-                
-                // Exchange code for tokens
-                const tokens = await this.handleCallback(code);
-                
-                // Get user profile
-                const spotifyProfile = await this.getUserProfile(tokens.accessToken);
-                
-                // Update user session with Spotify data
-                await this.updateUserSession(
-                    req.user, 
-                    req.sessionID, 
-                    tokens, 
-                    spotifyProfile
-                );
-                
-                // Clean up and redirect
-                const returnTo = req.session.returnTo || '/dashboard';
-                delete req.session.spotifyState;
-                delete req.session.returnTo;
-                
-                res.redirect(returnTo);
-                
-            } catch (error) {
-                console.error('Spotify callback error:', error);
-                res.redirect('/error?message=' + encodeURIComponent(error.message));
-            }
-        });
-
+        // Spotify callback route
+        app.get('/callback', this.handleCallbackRequest.bind(this));
         // Token refresh endpoint
         app.post('/api/spotify/refresh', isAuthenticated, async (req, res) => {
             try {

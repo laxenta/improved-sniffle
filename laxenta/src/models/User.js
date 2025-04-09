@@ -123,14 +123,31 @@ UserSchema.methods.disconnectSpotify = async function(token) {
 
 // Clean up expired sessions
 UserSchema.methods.cleanupSessions = async function() {
-    const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000; // 2 weeks in milliseconds
+    const ONE_DAY = 24 * 60 * 60 * 1000; // 1 day in milliseconds
     const now = Date.now();
 
+    // Keep sessions that are either:
+    // 1. Active in the last 24 hours
+    // 2. Have valid Spotify connection
+    // 3. Are the current session
     this.sessions = this.sessions.filter(session => {
         const age = now - session.lastActive.getTime();
-        return age < TWO_WEEKS || session.isActive;
+        const hasSpotify = session.spotify && session.spotify.accessToken;
+        const isRecent = age < ONE_DAY;
+        
+        return isRecent || hasSpotify || session.isActive;
     });
 
+    // Remove duplicate sessions (keep most recent)
+    const uniqueSessions = new Map();
+    this.sessions.forEach(session => {
+        if (!uniqueSessions.has(session.sessionId) || 
+            session.lastActive > uniqueSessions.get(session.sessionId).lastActive) {
+            uniqueSessions.set(session.sessionId, session);
+        }
+    });
+
+    this.sessions = Array.from(uniqueSessions.values());
     await this.save();
 };
 

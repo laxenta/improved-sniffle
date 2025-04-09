@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - <%= botName %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hover.css/2.3.1/css/hover-min.css">
+    <!-- i put styles later -->
+
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <img src="<%= botAvatar || '/default-avatar.png' %>" alt="<%= botName %>">
+                <span><%= botName %></span>
+            </div>
+            <% if (user) { %>
+                <div class="user-info">
+                    <img src="<%= user.avatar %>" alt="<%= user.username %>">         
+                               <span><%= user.username %></span>
+                    <% if (hasSpotify) { %>
+                        <span class="spotify-connected">
+                            <i class="fab fa-spotify"></i> Connected
+                        </span>
+                    <% } %>
+                    <form action="/logout" method="POST" style="display: inline;">
+                        <button type="submit" class="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                </div>
+            <% } %>
+        </nav>
+    </header>
+
+    <main>
+        <% if (!hasSpotify) { %>
+            <div class="auth-prompt">
+                <h2>Connect Your Spotify</h2>
+                <p>Link your Spotify account to start playing music in Discord</p>
+                <a href="/auth/spotify" class="spotify-auth-btn">
+                    <i class="fab fa-spotify"></i> Link Spotify Account
+                </a>
+            </div>
+        <% } else { %>
+            <!-- Search Section -->
+            <section class="search-section">
+                <h2><i class="fas fa-search"></i> Search and Play</h2>
+                <div class="search-container">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        placeholder="Search for tracks, artists, or paste a Spotify link..." 
+                        aria-label="Search"
+                    >
+                    <button id="search-button">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+                <div id="search-results" class="content-grid">
+                    <!-- Search results will be populated here -->
+                </div>
+            </section>
+
+            <!-- Currently Playing Section -->
+            <section class="now-playing-section">
+                <h2>
+                    <i class="fas fa-play-circle"></i> Currently Playing
+                    <button class="refresh-button" id="refresh-now-playing" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </h2>
+                <div id="now-playing-container" class="now-playing-grid">
+                    <% if (nowPlaying && nowPlaying.length > 0) { %>
+                        <% nowPlaying.forEach(player => { %>
+                            <div class="player-card">
+                                <img src="<%= player.track.thumbnail %>" alt="<%= player.track.title %>">
+                                <div class="track-details">
+                                    <h3><%= player.track.title %></h3>
+                                    <p class="author"><%= player.track.author %></p>
+                                    <p class="guild">Playing in <%= player.guildName %></p>
+                                    <div class="controls">
+                                        <% if (player.playing) { %>
+                                            <button onclick="pauseTrack('<%= player.guildId %>')">
+                                                <i class="fas fa-pause"></i> Pause
+                                            </button>
+                                        <% } else { %>
+                                            <button onclick="resumeTrack('<%= player.guildId %>')">
+                                                <i class="fas fa-play"></i> Play
+                                            </button>
+                                        <% } %>
+                                        <button onclick="skipTrack('<%= player.guildId %>')">
+                                            <i class="fas fa-step-forward"></i> Skip
+                                        </button>
+                                        <button onclick="stopTrack('<%= player.guildId %>')">
+                                            <i class="fas fa-stop"></i> Stop
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="no-results">
+                            <i class="fas fa-music" style="font-size: 3rem; opacity: 0.5; margin-bottom: 1rem;"></i>
+                            <p>No tracks currently playing</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                Search for a song above or select one from your playlists below
+                            </p>
+                        </div>
+                    <% } %>
+                </div>
+            </section>
+
+            <!-- Content Tabs -->
+            <div class="tabs">
+                <div class="tab active" data-tab="playlists">
+                    <i class="fas fa-list"></i> Playlists
+                </div>
+                <div class="tab" data-tab="liked-songs">
+                    <i class="fas fa-heart"></i> Liked Songs
+                </div>
+            </div>
+
+            <!-- Playlists Section -->
+            <section class="tab-content active" id="playlists-tab">
+                <h2>
+                    <i class="fas fa-list"></i> Your Playlists
+                    <button class="refresh-button" id="refresh-playlists" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </h2>
+                <div id="playlist-container" class="content-grid">
+                    <!-- Skeleton loaders -->
+                    <% for (let i = 0; i < 8; i++) { %>
+                        <div class="skeleton-card">
+                            <div class="skeleton-img skeleton"></div>
+                            <div class="skeleton-title skeleton"></div>
+                            <div class="skeleton-subtitle skeleton"></div>
+                            <div class="skeleton-button skeleton"></div>
+                        </div>
+                    <% } %>
+                </div>
+            </section>
+
+            <!-- Liked Songs Section -->
+            <section class="tab-content" id="liked-songs-tab">
+                <h2>
+                    <i class="fas fa-heart"></i> Liked Songs
+                    <button class="refresh-button" id="refresh-liked-songs" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </h2>
+                <div id="liked-songs-container" class="content-grid">
+                    <!-- Skeleton loaders -->
+                    <% for (let i = 0; i < 8; i++) { %>
+                        <div class="skeleton-card">
+                            <div class="skeleton-img skeleton"></div>
+                            <div class="skeleton-title skeleton"></div>
+                            <div class="skeleton-subtitle skeleton"></div>
+                            <div class="skeleton-button skeleton"></div>
+                        </div>
+                    <% } %>
+                </div>
+            </section>
+        <% } %>
+    </main>
+
+    <footer>
+        <p>&copy; <%= new Date().getFullYear() %> <%= botName %> | Discord & Spotify Integration</p>
+        <p>Bot Status: <span id="bot-status" class="status-badge offline">Checking...</span></p>
+    </footer>
+
+   <script>
+    // Session and token management
+async function checkSession() {
+    try {
+        const response = await fetch('/api/auth/verify');
+        const data = await response.json();
+        
+        if (!data.valid) {
+            window.location.href = '/auth/discord';
+            return false;
+        }
+
+        if (!data.user.authStatus.spotify) {
+            if (window.location.pathname !== '/') {
+                window.location.href = '/auth/spotify?returnTo=' + encodeURIComponent(window.location.pathname);
+            }
+            return false;
+        }
+        
+        // Update bot status
+        updateBotStatus(true);
+        return true;
+    } catch (error) {
+        console.error('Session check failed:', error);
+        updateBotStatus(false);
+        return false;
+    }
+}
+
+async function refreshSpotifyToken() {
+    try {
+        showToast('Refreshing Spotify token...');
+        const response = await fetch('/api/spotify/refresh', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Token refresh failed with status: ' + response.status);
+        }
+        
+        const result = await response.json();
+        showToast('Token refreshed successfully!');
+        return result;
+    } catch (error) {
+        console.error('Token refresh failed:', error);
+        showToast('Failed to refresh token. Redirecting...', 'error');
+        setTimeout(() => {
+            window.location.href = '/auth/spotify?returnTo=' + encodeURIComponent(window.location.pathname);
+        }, 2000);
+        throw error;
+    }
+}
+
+
+// does this even work lmao? i mean idk xd
+    async function loadPlaylists(retryCount = 0) {
+    try {
+        const container = document.getElementById('playlist-container');
+        if (!container) return;
+
+        const response = await fetch('/api/spotify/playlists');
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return loadPlaylists(retryCount + 1);
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const playlists = await response.json();
+        
+        // Clear container
+        container.innerHTML = '';
+        
+        if (!playlists || playlists.length === 0) {
+            container.innerHTML = `
+                <div class="no-results" style="grid-column: 1 / -1;">
+                    <i class="fas fa-list"></i>
+                    <p>No playlists found</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Add each playlist
+        playlists.forEach(playlist => {
+            const element = document.createElement('div');
+            element.className = 'playlist-card';
+            
+            const imageUrl = playlist.images && playlist.images.length > 0 ? 
+                playlist.images[0].url : '/images/default-playlist.png';
+            
+            element.innerHTML = `
+                <img src="${imageUrl}" alt="${escapeHtml(playlist.name)}" loading="lazy">
+                <div class="playlist-info">
+                    <h4 title="${escapeHtml(playlist.name)}">${escapeHtml(playlist.name)}</h4>
+                    <p>${playlist.tracks.total} tracks</p>
+                    <button onclick="playInDiscord('${playlist.uri}')">
+                        <i class="fas fa-play"></i> Play
+                    </button>
+                </div>
+            `;
+            container.appendChild(element);
+        });
+    } catch (error) {
+        console.error('Failed to load playlists:', error);
+        
+        const container = document.getElementById('playlist-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message" style="grid-column: 1 / -1;" onclick="loadPlaylists()">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Failed to load playlists. Click to retry.
+                </div>
+            `;
+        }
+    }
+}
+
+async function loadLikedSongs(retryCount = 0) {
+    try {
+        const container = document.getElementById('liked-songs-container');
+        if (!container) return;
+
+        const response = await fetch('/api/spotify/liked-songs');
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return loadLikedSongs(retryCount + 1);
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Clear container
+        container.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="no-results" style="grid-column: 1 / -1;">
+                    <i class="fas fa-heart"></i>
+                    <p>No liked songs found</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Add each liked song
+        data.forEach(item => {
+            const track = item.track;
+            const element = document.createElement('div');
+            element.className = 'song-card';
+            
+            const imageUrl = track.album && track.album.images && track.album.images.length > 0 ? 
+                track.album.images[0].url : '/images/default-song.png';
+            
+            const artistNames = track.artists.map(a => a.name).join(', ');
+            
+            element.innerHTML = `
+                <img src="${imageUrl}" alt="${escapeHtml(track.name)}" loading="lazy">
+                <div class="song-info">
+                    <h4 title="${escapeHtml(track.name)}">${escapeHtml(track.name)}</h4>
+                    <p title="${escapeHtml(artistNames)}">${escapeHtml(artistNames)}</p>
+                    <button onclick="playInDiscord('${track.uri}')">
+                        <i class="fas fa-play"></i> Play
+                    </button>
+                </div>
+            `;
+            container.appendChild(element);
+        });
+    } catch (error) {
+        console.error('Failed to load liked songs:', error);
+        
+        const container = document.getElementById('liked-songs-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message" style="grid-column: 1 / -1;" onclick="loadLikedSongs()">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Failed to load liked songs. Click to retry.
+                </div>
+            `;
+        }
+    }
+}
+// Player control functions
+async function playInDiscord(uri, retryCount = 0) {
+    try {
+        showToast('Sending to Discord...');
+        
+        const response = await fetch('/api/music/play', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ query: uri })
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return playInDiscord(uri, retryCount + 1);
+            }
+            throw new Error('Failed to send track to Discord');
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        
+        showToast('Track sent to Discord!', 'success');
+        setTimeout(() => loadNowPlaying(), 2000);
+    } catch (error) {
+        console.error('Play in Discord error:', error);
+        showToast('Failed to play track in Discord', 'error');
+    }
+}
+
+async function pauseTrack(guildId, retryCount = 0) {
+    try {
+        const response = await fetch(`/api/music/pause/${guildId}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return pauseTrack(guildId, retryCount + 1);
+            }
+            throw new Error('Failed to pause track');
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        
+        showToast('Track paused', 'success');
+        setTimeout(() => loadNowPlaying(), 500);
+    } catch (error) {
+        console.error('Pause track error:', error);
+        showToast('Failed to pause track', 'error');
+    }
+}
+
+async function resumeTrack(guildId, retryCount = 0) {
+    try {
+        const response = await fetch(`/api/music/resume/${guildId}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return resumeTrack(guildId, retryCount + 1);
+            }
+            throw new Error('Failed to resume track');
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        
+        showToast('Track resumed', 'success');
+        setTimeout(() => loadNowPlaying(), 500);
+    } catch (error) {
+        console.error('Resume track error:', error);
+        showToast('Failed to resume track', 'error');
+    }
+}
+
+async function skipTrack(guildId, retryCount = 0) {
+    try {
+        const response = await fetch(`/api/music/skip/${guildId}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return skipTrack(guildId, retryCount + 1);
+            }
+            throw new Error('Failed to skip track');
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        
+        showToast('Track skipped', 'success');
+        setTimeout(() => loadNowPlaying(), 1000);
+    } catch (error) {
+        console.error('Skip track error:', error);
+        showToast('Failed to skip track', 'error');
+    }
+}
+
+async function stopTrack(guildId, retryCount = 0) {
+    try {
+        const response = await fetch(`/api/music/stop/${guildId}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return stopTrack(guildId, retryCount + 1);
+            }
+            throw new Error('Failed to stop playback');
+        }
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            return;
+        }
+        
+        showToast('Playback stopped', 'success');
+        setTimeout(() => loadNowPlaying(), 1000);
+    } catch (error) {
+        console.error('Stop track error:', error);
+        showToast('Failed to stop playback', 'error');
+    }
+}
+
+// Now Playing functions
+async function loadNowPlaying(retryCount = 0) {
+    try {
+        const container = document.getElementById('now-playing-container');
+        if (!container) return;
+        
+        const response = await fetch('/api/music/now-playing');
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return loadNowPlaying(retryCount + 1);
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const nowPlaying = await response.json();
+        
+        if (!Array.isArray(nowPlaying) || nowPlaying.length === 0) {
+            container.innerHTML = `
+                <div class="no-results">
+                    <i class="fas fa-music" style="font-size: 3rem; opacity: 0.5; margin-bottom: 1rem;"></i>
+                    <p>No tracks currently playing</p>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+                        Search for a song above or select one from your playlists below
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Clear container
+        container.innerHTML = '';
+        
+        // Add each currently playing track
+        nowPlaying.forEach(player => {
+            const element = document.createElement('div');
+            element.className = 'player-card';
+            
+            element.innerHTML = `
+                <img src="${player.track.thumbnail}" alt="${escapeHtml(player.track.title)}">
+                <div class="track-details">
+                    <h3>${escapeHtml(player.track.title)}</h3>
+                    <p class="author">${escapeHtml(player.track.author)}</p>
+                    <p class="guild">Playing in ${escapeHtml(player.guildName)}</p>
+                    <div class="controls">
+                        ${player.playing ? 
+                            `<button onclick="pauseTrack('${player.guildId}')">
+                                <i class="fas fa-pause"></i> Pause
+                            </button>` : 
+                            `<button onclick="resumeTrack('${player.guildId}')">
+                                <i class="fas fa-play"></i> Play
+                            </button>`
+                        }
+                        <button onclick="skipTrack('${player.guildId}')">
+                            <i class="fas fa-step-forward"></i> Skip
+                        </button>
+                        <button onclick="stopTrack('${player.guildId}')">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(element);
+        });
+    } catch (error) {
+        console.error('Failed to load now playing:', error);
+        
+        const container = document.getElementById('now-playing-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message" style="grid-column: 1 / -1;" onclick="loadNowPlaying()">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Failed to load currently playing tracks. Click to retry.
+                </div>
+            `;
+        }
+    }
+}
+
+// Search functionality
+async function searchSpotify(query, retryCount = 0) {
+    try {
+        const resultsContainer = document.getElementById('search-results');
+        if (!resultsContainer) return;
+        
+        // Show loading state
+        resultsContainer.innerHTML = `
+            <div class="loading" style="grid-column: 1 / -1;">
+                <i class="fas fa-spinner fa-spin"></i> Searching...
+            </div>
+        `;
+        
+        const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}`);
+        
+        if (!response.ok) {
+            if (response.status === 401 && retryCount < 2) {
+                await refreshSpotifyToken();
+                return searchSpotify(query, retryCount + 1);
+            }
+            throw new Error(`Search failed with status: ${response.status}`);
+        }
+        
+        const results = await response.json();
+        
+        // Clear results container
+        resultsContainer.innerHTML = '';
+        
+        if (!results.tracks || results.tracks.items.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="no-results" style="grid-column: 1 / -1;">
+                    No results found for "${escapeHtml(query)}"
+                </div>
+            `;
+            return;
+        }
+        
+        // Display track results
+        results.tracks.items.forEach(track => {
+            const element = document.createElement('div');
+            element.className = 'song-card';
+            
+            const imageUrl = track.album && track.album.images && track.album.images.length > 0 ? 
+                track.album.images[0].url : '/images/default-song.png';
+            
+            const artistNames = track.artists.map(a => a.name).join(', ');
+            
+            element.innerHTML = `
+                <img src="${imageUrl}" alt="${escapeHtml(track.name)}" loading="lazy">
+                <div class="song-info">
+                    <h4 title="${escapeHtml(track.name)}">${escapeHtml(track.name)}</h4>
+                    <p title="${escapeHtml(artistNames)}">${escapeHtml(artistNames)}</p>
+                    <button onclick="playInDiscord('${track.uri}')">
+                        <i class="fas fa-play"></i> Play
+                    </button>
+                </div>
+            `;
+            resultsContainer.appendChild(element);
+        });
+    } catch (error) {
+        console.error('Search failed:', error);
+        
+        const resultsContainer = document.getElementById('search-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = `
+                <div class="error-message" style="grid-column: 1 / -1;">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Search failed. Please try again.
+                </div>
+            `;
+        }
+        
+        showToast('Search failed', 'error');
+    }
+}
+
+// Utils
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 
+                          type === 'error' ? 'fa-exclamation-circle' : 
+                          'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Auto dismiss after 5 seconds
+    const dismissTimeout = setTimeout(() => {
+        dismissToast(toast);
+    }, 5000);
+    
+    // Close button
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        dismissToast(toast);
+    });
+}
+
+function dismissToast(toast) {
+    toast.classList.remove('show');
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 300); // Match animation duration
+}
+
+function updateBotStatus(online) {
+    const statusElement = document.getElementById('bot-status');
+    if (statusElement) {
+        statusElement.className = `status-badge ${online ? 'online' : 'offline'}`;
+        statusElement.textContent = online ? 'Online' : 'Offline';
+    }
+}
+
+// Tab switching
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial load of data
+    checkSession().then(valid => {
+        if (valid) {
+            loadPlaylists();
+            loadLikedSongs();
+            loadNowPlaying();
+        }
+    });
+    
+    // Set up tab switching
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.getAttribute('data-tab');
+            
+            // Update active tab
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Update visible content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+        });
+    });
+    
+    // Set up search functionality
+    const searchInput = document.getElementById('search-input');
+    const searchButton = document.getElementById('search-button');
+    
+    if (searchInput && searchButton) {
+        // Search on button click
+        searchButton.addEventListener('click', () => {
+            const query = searchInput.value.trim();
+            if (query) {
+                searchSpotify(query);
+            }
+        });
+        
+        // Search on enter key
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                if (query) {
+                    searchSpotify(query);
+                }
+            }
+        });
+    }
+    
+    // Set up refresh buttons
+    const refreshButtons = {
+        'refresh-playlists': loadPlaylists,
+        'refresh-liked-songs': loadLikedSongs,
+        'refresh-now-playing': loadNowPlaying
+    };
+    
+    Object.entries(refreshButtons).forEach(([id, callback]) => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.addEventListener('click', () => {
+                button.classList.add('spinning');
+                callback().finally(() => {
+                    setTimeout(() => {
+                        button.classList.remove('spinning');
+                    }, 500);
+                });
+            });
+        }
+    });
+    
+    // Check bot status every 60 seconds
+    setInterval(() => {
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                updateBotStatus(data.online);
+            })
+            .catch(() => {
+                updateBotStatus(false);
+            });
+    }, 60000);
+});
+
+</script>

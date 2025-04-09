@@ -3,7 +3,9 @@
 .env.*
 *.local
 
-# Dependencies
+laxenta/laxenta/ffmpeg
+laxenta/laxenta/ffprobe
+laxenta/laxenta/ffmpeg.exe
 node_modules/
 dist/
 

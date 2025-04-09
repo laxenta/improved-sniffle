@@ -25,7 +25,25 @@ class SpotifyAuthManager {
         return this.spotifyApi.createAuthorizeURL(scopes, state);
     }
 
-// Handle the OAuth callback
+
+    // Add this method to the SpotifyAuthManager class
+async handleCallback(code) {
+    try {
+        // Get tokens from Spotify
+        const data = await this.spotifyApi.authorizationCodeGrant(code);
+        
+        return {
+            accessToken: data.body.access_token,
+            refreshToken: data.body.refresh_token,
+            expiresIn: data.body.expires_in
+        };
+    } catch (error) {
+        console.error('Spotify token exchange error:', error);
+        throw error;
+    }
+}
+
+// Fix the handleCallbackRequest method
 async handleCallbackRequest(req, res) {
     try {
         if (!req.session || !req.isAuthenticated()) {
@@ -36,27 +54,52 @@ async handleCallbackRequest(req, res) {
         const { code, state } = req.query;
 
         if (!state || state !== req.session.spotifyState) {
-            console.error('State mismatch or missing');
+            console.error('State mismatch:', {
+                queryState: state,
+                sessionState: req.session.spotifyState
+            });
             return res.redirect('/dashboard?error=invalid_state');
         }
 
-        // Get tokens
+        // Get tokens using the new handleCallback method
         const tokens = await this.handleCallback(code);
+        
+        // Get user profile
+        this.spotifyApi.setAccessToken(tokens.accessToken);
         const profile = await this.getUserProfile(tokens.accessToken);
 
-        // Clean up any existing Spotify sessions for this user
-        req.user.sessions = req.user.sessions.filter(s =>
-            s.sessionId === req.sessionID || !s.spotify
-        );
+        // Find current session
+        let session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+        if (!session) {
+            session = {
+                sessionId: req.sessionID,
+                createdAt: new Date()
+            };
+            req.user.sessions.push(session);
+        }
 
-        // Update current session
-        await this.updateUserSession(req.user, req.sessionID, tokens, profile);
+        // Update session with Spotify data
+        session.spotify = {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
+            profile: profile
+        };
+        session.lastActive = new Date();
 
-        const returnTo = req.session.returnTo || '/dashboard';
+        // Clean up old sessions
+        await req.user.cleanupSessions();
+        
+        // Save changes
+        await req.user.save();
+
+        // Clear state from session
         delete req.session.spotifyState;
+        
+        // Redirect back
+        const returnTo = req.session.returnTo || '/dashboard';
         delete req.session.returnTo;
-
-        await req.session.save();
+        
         res.redirect(returnTo);
 
     } catch (error) {
@@ -64,6 +107,7 @@ async handleCallbackRequest(req, res) {
         res.redirect('/error?message=' + encodeURIComponent(error.message));
     }
 }
+
     // Get user profile once authenticated
     async getUserProfile(accessToken) {
         this.spotifyApi.setAccessToken(accessToken);

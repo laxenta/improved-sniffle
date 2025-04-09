@@ -2,7 +2,8 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const path = require('path');
-const SpotifyAuthHandler = require('../auth/spotifyAuth');
+const crypto = require('crypto');
+const SpotifyAuthManager = require('../auth/spotifyAuth');
 const DiscordAuthManager = require('../auth/discordAuth');
 const MongoStore = require('connect-mongo');
 const User = require('../models/User');
@@ -13,7 +14,7 @@ class WebServer {
         this.app = express();
 
         // Initialize auth handlers
-        this.spotifyAuthHandler = new SpotifyAuthHandler({
+        this.spotifyAuthHandler = new SpotifyAuthManager({
             spotify: {
                 clientId: process.env.SPOTIFY_CLIENT_ID,
                 clientSecret: process.env.SPOTIFY_CLIENT_SECRET
@@ -34,6 +35,7 @@ class WebServer {
         // Setup order matters
         this.setupMiddleware();
         this.setupAuth();
+        this.setupAuthRoutes(); // Add this line - it was missing
         this.setupTemplateRoutes();
         this.setup();
 
@@ -107,7 +109,11 @@ class WebServer {
 
         // Let auth handlers set up their routes
         this.discordAuthHandler.setupRoutes(this.app);
-        this.spotifyAuthHandler.setupRoutes(this.app, this.discordAuthHandler.isAuthenticated);
+       // this.spotifyAuthHandler.setupRoutes(this.app, this.discordAuthHandler.isAuthenticated);
+
+           // Use the bound version of isAuthenticated
+    const boundIsAuthenticated = this.isAuthenticated.bind(this);
+    this.spotifyAuthHandler.setupRoutes(this.app, boundIsAuthenticated);
 
         // Add auth debug middleware for development
         if (process.env.NODE_ENV !== 'production') {
@@ -507,42 +513,48 @@ class WebServer {
             return this.spotifyAuthHandler.createClientForUser(req.user.sessions.find(s => s.sessionId === req.sessionID));
         };
 
-        // Use the handler's middleware for token refresh
-        const ensureFreshSpotifyToken = this.spotifyAuthHandler.ensureFreshToken.bind(this.spotifyAuthHandler);
+       
+           // Use the handler's middleware for token refresh with proper binding
+    const ensureFreshSpotifyToken = this.spotifyAuthHandler.ensureFreshToken.bind(this.spotifyAuthHandler);
+    const boundIsAuthenticated = this.isAuthenticated.bind(this);
 
-        // Routes with new middleware
-        this.app.get('/api/spotify/liked-songs', 
-            this.isAuthenticated.bind(this),
-            ensureFreshSpotifyToken,
-            async (req, res) => {
-                try {
-                    const spotifyApi = getSpotifyClientForUser(req);
-                    const data = await spotifyApi.getMySavedTracks({ limit: 50 });
-                    res.json(data.body.items);
-                } catch (error) {
-                    console.error('Failed to fetch liked songs:', error);
-                    res.status(500).json({ error: 'Failed to fetch liked songs' });
-                }
+    // Routes with bound middleware
+    this.app.get('/api/spotify/liked-songs', 
+        boundIsAuthenticated,
+        ensureFreshSpotifyToken,
+        async (req, res) => {
+            try {
+                const spotifyApi = getSpotifyClientForUser(req);
+                const data = await spotifyApi.getMySavedTracks({ limit: 50 });
+                res.json(data.body.items);
+            } catch (error) {
+                console.error('Failed to fetch liked songs:', error);
+                res.status(500).json({ error: 'Failed to fetch liked songs' });
             }
-        );
+        }
+    );
 
-        this.app.get('/api/spotify/playlists', 
-            this.isAuthenticated.bind(this),
-            ensureFreshSpotifyToken,
-            async (req, res) => {
-                try {
-                    const spotifyApi = getSpotifyClientForUser(req);
-                    const data = await spotifyApi.getUserPlaylists();
-                    res.json(data.body.items);
-                } catch (error) {
-                    console.error('Failed to fetch playlists:', error);
-                    res.status(500).json({ error: 'Failed to fetch playlists' });
-                }
+    this.app.get('/api/spotify/playlists', 
+        boundIsAuthenticated,
+        ensureFreshSpotifyToken,
+        async (req, res) => {
+            try {
+                const spotifyApi = getSpotifyClientForUser(req);
+                const data = await spotifyApi.getUserPlaylists();
+                res.json(data.body.items);
+            } catch (error) {
+                console.error('Failed to fetch playlists:', error);
+                res.status(500).json({ error: 'Failed to fetch playlists' });
             }
-        );
+        }
+    );
+
 
         // Play in Discord
-        this.app.post('/api/music/play', this.isAuthenticated.bind(this), ensureFreshSpotifyToken, async (req, res) => {
+        this.app.post('/api/music/play', 
+            boundIsAuthenticated, 
+            ensureFreshSpotifyToken, 
+            async (req, res) => {
             try {
                 const { query } = req.body;
                 const user = await this.client.users.fetch(req.user.discordId);

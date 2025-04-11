@@ -60,36 +60,28 @@ class WebServer {
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
     
-        // 2. Session setup with file store
+        // 2. Session setup with MemoryStore (for development)
         this.app.use(session({
             secret: process.env.SESSION_SECRET,
             resave: false,
             saveUninitialized: false,
-            store: new FileStore({
-                path: './sessions',
-                ttl: 14 * 24 * 60 * 60,
-                retries: 0,
-                fileExtension: '.json'
-            }),
+            store: new session.MemoryStore(), // Simple in-memory storage
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
-                maxAge: 14 * 24 * 60 * 60 * 1000,
+                maxAge: 24 * 60 * 60 * 1000, // 1 day
                 httpOnly: true,
                 sameSite: 'lax'
             },
-            name: 'sessionID'
+            name: 'sid'
         }));
     
-        // Debug middleware (optional, for development only)
+        // Debug middleware
         if (process.env.NODE_ENV !== 'production') {
             this.app.use((req, res, next) => {
-                console.log('Auth Debug:', {
-                    url: req.url,
-                    method: req.method,
-                    sessionID: req.sessionID,
-                    hasSpotifyState: !!req.session?.spotifyState,
-                    isAuthenticated: req.isAuthenticated?.(),
-                    hasUser: !!req.user
+                console.log('Session Debug:', {
+                    id: req.sessionID,
+                    isAuth: req.isAuthenticated?.(),
+                    user: req.user?.username
                 });
                 next();
             });
@@ -183,88 +175,39 @@ class WebServer {
         });
 
 //CALLBACKKKKKK of spotify
-        this.app.get('/callback', async (req, res) => {
-            const { code, state } = req.query;
-            
-            console.log('Callback received:', {
-                hasState: !!state,
-                sessionState: req.session?.spotifyState,
-                sessionID: req.sessionID
-            });
-        
-            try {
-                // Basic validation
-                if (!req.session) {
-                    throw new Error('No session found');
-                }
-        
-                if (!req.isAuthenticated()) {
-                    return res.redirect('/auth/discord');
-                }
-        
-                // State validation with detailed logging
-                if (!state || !req.session.spotifyState) {
-                    console.error('Missing state:', {
-                        queryState: state,
-                        sessionState: req.session.spotifyState
-                    });
-                    return res.redirect('/dashboard?error=invalid_state');
-                }
-        
-                if (state !== req.session.spotifyState) {
-                    console.error('State mismatch:', {
-                        queryState: state,
-                        sessionState: req.session.spotifyState
-                    });
-                    return res.redirect('/dashboard?error=state_mismatch');
-                }
-        
-                // Get tokens
-                const tokens = await this.spotifyAuthHandler.handleCallback(code);
-                
-                // Get user profile
-                this.spotifyAuthHandler.spotifyApi.setAccessToken(tokens.accessToken);
-                const profile = await this.spotifyAuthHandler.getUserProfile(tokens.accessToken);
-        
-                // Use the new findOrCreateSession method
-                const clientIp = req.header('X-Client-IP') || req.ip;
-                const session = req.user.findOrCreateSession(req.sessionID, clientIp);
-                
-                // Update session with Spotify data
-                session.spotify = {
-                    accessToken: tokens.accessToken,
-                    refreshToken: tokens.refreshToken,
-                    expiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
-                    profile: profile,
-                    needsReconnect: false
-                };
-        
-                // Save changes
-                await req.user.save();
-                
-                // Run session cleanup after successful connection
-                await req.user.cleanupSessions();
-        
-                // Clear state and redirect
-                delete req.session.spotifyState;
-                
-                const returnTo = req.session.returnTo || '/dashboard';
-                delete req.session.returnTo;
-                
-                // Force session save before redirect
-                req.session.save((err) => {
-                    if (err) {
-                        console.error('Session save error:', err);
-                        return res.redirect('/error?message=session_error');
-                    }
-                    res.redirect(returnTo);
-                });
-        
-            } catch (error) {
-                console.error('Spotify callback error:', error);
-                res.redirect('/error?message=' + encodeURIComponent(error.message));
-            }
+this.app.get('/callback', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        console.log('Callback received:', {
+            hasState: !!req.query.state,
+            sessionState: req.session?.spotifyState,
+            sessionID: req.sessionID,
+            hasUser: !!req.user
         });
+
+        if (!req.user) {
+            throw new Error('No authenticated user found');
+        }
+
+        // Store current session ID for reference
+        req.user.currentSessionId = req.sessionID;
+
+        const result = await this.spotifyAuthHandler.handleCallback(
+            req.query.code,
+            req.user
+        );
+
+        if (result.success) {
+            const returnTo = req.session.returnTo || '/dashboard';
+            delete req.session.returnTo;
+            res.redirect(returnTo);
+        } else {
+            res.redirect('/error?message=spotify_auth_failed');
+        }
+    } catch (error) {
+        console.error('Spotify callback error:', error);
+        res.redirect('/error?message=spotify_auth_error');
+    }
+});
 
 
         // Logout route
@@ -455,7 +398,7 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
         done(error);
     }
 }
-    
+
 
     setup() {
         // Serve static files

@@ -9,9 +9,33 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hover.css/2.3.1/css/hover-min.css">
     <!-- i put styles later -->
+
 </head>
 <body>
-    <%- include('partials/navbar') %>
+    <header>
+        <nav>
+            <div class="logo">
+                <img src="<%= botAvatar || '/default-avatar.png' %>" alt="<%= botName %>">
+                <span><%= botName %></span>
+            </div>
+            <% if (user) { %>
+                <div class="user-info">
+                    <img src="<%= user.avatarURL %>" alt="<%= user.username %>">         
+                               <span><%= user.username %></span>
+                    <% if (hasSpotify) { %>
+                        <span class="spotify-connected">
+                            <i class="fab fa-spotify"></i> Connected
+                        </span>
+                    <% } %>
+                    <form action="/logout" method="POST" style="display: inline;">
+                        <button type="submit" class="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                </div>
+            <% } %>
+        </nav>
+    </header>
 
     <main>
         <% if (!hasSpotify) { %>
@@ -42,55 +66,6 @@
                 </div>
             </section>
 
-            <!-- Currently Playing Section -->
-            <section class="now-playing-section">
-                <h2>
-                    <i class="fas fa-play-circle"></i> Currently Playing
-                    <button class="refresh-button" id="refresh-now-playing" title="Refresh">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </h2>
-                <div id="now-playing-container" class="now-playing-grid">
-                    <% if (nowPlaying && nowPlaying.length > 0) { %>
-                        <% nowPlaying.forEach(player => { %>
-                            <div class="player-card">
-                                <img src="<%= player.track.thumbnail %>" alt="<%= player.track.title %>">
-                                <div class="track-details">
-                                    <h3><%= player.track.title %></h3>
-                                    <p class="author"><%= player.track.author %></p>
-                                    <p class="guild">Playing in <%= player.guildName %></p>
-                                    <div class="controls">
-                                        <% if (player.playing) { %>
-                                            <button onclick="pauseTrack('<%= player.guildId %>')">
-                                                <i class="fas fa-pause"></i> Pause
-                                            </button>
-                                        <% } else { %>
-                                            <button onclick="resumeTrack('<%= player.guildId %>')">
-                                                <i class="fas fa-play"></i> Play
-                                            </button>
-                                        <% } %>
-                                        <button onclick="skipTrack('<%= player.guildId %>')">
-                                            <i class="fas fa-step-forward"></i> Skip
-                                        </button>
-                                        <button onclick="stopTrack('<%= player.guildId %>')">
-                                            <i class="fas fa-stop"></i> Stop
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        <% }); %>
-                    <% } else { %>
-                        <div class="no-results">
-                            <i class="fas fa-music" style="font-size: 3rem; opacity: 0.5; margin-bottom: 1rem;"></i>
-                            <p>No tracks currently playing</p>
-                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-                                Search for a song above or select one from your playlists below
-                            </p>
-                        </div>
-                    <% } %>
-                </div>
-            </section>
-
             <!-- Content Tabs -->
             <div class="tabs">
                 <div class="tab active" data-tab="playlists">
@@ -110,11 +85,15 @@
                     </button>
                 </h2>
                 <div id="playlist-container" class="content-grid">
-                    <!-- Loading spinner instead of skeleton -->
-                    <div class="loading-container">
-                        <div class="spinner"></div>
-                        <p>Loading playlists...</p>
-                    </div>
+                    <!-- Skeleton loaders -->
+                    <% for (let i = 0; i < 8; i++) { %>
+                        <div class="skeleton-card">
+                            <div class="skeleton-img skeleton"></div>
+                            <div class="skeleton-title skeleton"></div>
+                            <div class="skeleton-subtitle skeleton"></div>
+                            <div class="skeleton-button skeleton"></div>
+                        </div>
+                    <% } %>
                 </div>
             </section>
 
@@ -127,11 +106,15 @@
                     </button>
                 </h2>
                 <div id="liked-songs-container" class="content-grid">
-                    <!-- Loading spinner instead of skeleton -->
-                    <div class="loading-container">
-                        <div class="spinner"></div>
-                        <p>Loading songs...</p>
-                    </div>
+                    <!-- Skeleton loaders -->
+                    <% for (let i = 0; i < 8; i++) { %>
+                        <div class="skeleton-card">
+                            <div class="skeleton-img skeleton"></div>
+                            <div class="skeleton-title skeleton"></div>
+                            <div class="skeleton-subtitle skeleton"></div>
+                            <div class="skeleton-button skeleton"></div>
+                        </div>
+                    <% } %>
                 </div>
             </section>
         <% } %>
@@ -141,6 +124,522 @@
         <p>&copy; <%= new Date().getFullYear() %> <%= botName %> | Discord & Spotify Integration</p>
         <p>Bot Status: <span id="bot-status" class="status-badge offline">Checking...</span></p>
     </footer>
+
+
+
+<style>
+
+:root {
+    --primary: #7289da;
+    --primary-dark: #5f73bc;
+    --secondary: #1DB954;
+    --secondary-dark: #1aa34a;
+    --text: #dcddde;
+    --background: #36393f;
+    --background-alt: #2f3136;
+    --card: #40444b;
+    --border: #202225;
+    --danger: #ed4245;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+header {
+    background-color: var(--background-alt);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.logo img {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+}
+
+.user-info img {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.spotify-connected {
+    background-color: var(--secondary);
+    color: white;
+    border-radius: 20px;
+    padding: 0.25rem 0.75rem;
+    margin-left: 10px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+}
+
+.spotify-connected i {
+    margin-right: 5px;
+}
+
+main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.auth-prompt {
+    text-align: center;
+    background-color: var(--card);
+    border-radius: 10px;
+    padding: 3rem;
+    margin: 5rem auto;
+    max-width: 600px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.auth-prompt h2 {
+    margin-bottom: 1rem;
+    font-size: 2rem;
+}
+
+.auth-prompt p {
+    margin-bottom: 2rem;
+    color: #a0a0a0;
+}
+
+.spotify-auth-btn {
+    background-color: var(--secondary);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 30px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.spotify-auth-btn:hover {
+    background-color: var(--secondary-dark);
+    transform: translateY(-2px);
+}
+
+.spotify-auth-btn i {
+    margin-right: 10px;
+}
+
+section {
+    margin-bottom: 3rem;
+}
+
+section h2 {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+section h2 i {
+    margin-right: 10px;
+    color: var(--secondary);
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #a0a0a0;
+}
+
+.error-message {
+    background-color: rgba(237, 66, 69, 0.1);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 1rem;
+    border-radius: 5px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.error-message:hover {
+    background-color: rgba(237, 66, 69, 0.2);
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.now-playing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.playlist-card, .song-card, .player-card {
+    background-color: var(--card);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.playlist-card:hover, .song-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.playlist-card img, .song-card img {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+}
+
+.playlist-info, .song-info {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.playlist-info h3, .song-info h4 {
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-info p, .song-info p {
+    color: #a0a0a0;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+button {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: auto;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button:hover {
+    background-color: var(--primary-dark);
+}
+
+button i {
+    margin-right: 5px;
+}
+
+.player-card {
+    display: flex;
+    flex-direction: row;
+    padding: 1rem;
+    align-items: center;
+}
+
+.player-card img {
+    width: 100px;
+    height: 100px;
+    border-radius: 5px;
+    object-fit: cover;
+}
+
+.track-details {
+    margin-left: 1rem;
+    flex-grow: 1;
+}
+
+.track-details h3 {
+    margin-bottom: 0.3rem;
+}
+
+.track-details .author {
+    color: #a0a0a0;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+}
+
+.track-details .guild {
+    color: var(--secondary);
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.controls button {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+.search-container {
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.search-container input {
+    flex-grow: 1;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background-color: var(--background-alt);
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.search-container input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.search-container button {
+    padding: 0.75rem 1.5rem;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+
+.tab {
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    font-weight: bold;
+}
+
+.tab.active {
+    border-bottom-color: var(--secondary);
+    color: white;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.logout-btn {
+    background-color: transparent;
+    color: #a0a0a0;
+    border: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 1rem;
+    font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+    background-color: rgba(237, 66, 69, 0.1);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+@media (max-width: 768px) {
+    .content-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .now-playing-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .player-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .track-details {
+        margin-left: 0;
+        margin-top: 1rem;
+    }
+    
+    .controls {
+        justify-content: center;
+    }
+}
+
+.tooltip {
+    position: relative;
+}
+
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: 120px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -60px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    margin-left: 5px;
+}
+
+.status-badge.online {
+    background-color: var(--secondary);
+}
+
+.status-badge.offline {
+    background-color: var(--danger);
+}
+
+.refresh-button {
+    background-color: transparent;
+    color: var(--text);
+    border: none;
+    margin-left: auto;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.refresh-button:hover {
+    color: white;
+}
+
+footer {
+    text-align: center;
+    padding: 2rem 0;
+    margin-top: 3rem;
+    border-top: 1px solid var(--border);
+    color: #a0a0a0;
+    font-size: 0.9rem;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, var(--card) 25%, var(--background-alt) 50%, var(--card) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-card {
+    height: 250px;
+}
+
+.skeleton-card .skeleton-img {
+    height: 160px;
+    width: 100%;
+}
+
+.skeleton-card .skeleton-title {
+    height: 20px;
+    margin: 10px;
+    width: 80%;
+}
+
+.skeleton-card .skeleton-subtitle {
+    height: 15px;
+    margin: 10px;
+    width: 60%;
+}
+
+.skeleton-card .skeleton-button {
+    height: 30px;
+    margin: 10px;
+    width: 90%;
+}
+
+#search-results {
+    margin-top: 2rem;
+}
+
+.no-results {
+    text-align: center;
+    padding: 2rem;
+    color: #a0a0a0;
+}
+
+</style>
+
+
+
+
+
+
+
+
+
 
    <script>
     // Session management - streamlined with async/await and better error handling
@@ -698,851 +1197,3 @@
     document.addEventListener('DOMContentLoaded', initDashboard);
 </script>
 
-<style>
-    /* Base styles */
-:root {
-    --primary-color: #7289da;
-    --primary-hover: #5e78d5;
-    --secondary-color: #1ed760;
-    --secondary-hover: #1db954;
-    --bg-color: #36393f;
-    --bg-lighter: #40444b;
-    --card-bg: #2f3136;
-    --card-hover: #32353b;
-    --text-color: #ffffff;
-    --text-secondary: #b9bbbe;
-    --text-muted: #8e9297;
-    --border-color: #202225;
-    --error-color: #ed4245;
-    --success-color: #43b581;
-    --info-color: #4f545c;
-    --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.3);
-    --transition-fast: all 0.2s ease;
-    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    --gradient-primary: linear-gradient(135deg, #7289da 0%, #5e78d5 100%);
-    --gradient-spotify: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
-    --border-radius-sm: 4px;
-    --border-radius-md: 8px;
-    --border-radius-lg: 12px;
-    --border-radius-full: 50px;
-}
-
-/* Typography */
-body {
-    font-family: 'Inter', sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    line-height: 1.6;
-    font-size: 16px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-h1, h2, h3, h4, h5, h6 {
-    margin-top: 0;
-    font-weight: 500;
-    line-height: 1.2;
-}
-
-h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-h3 {
-    font-size: 1.25rem;
-    margin-bottom: 0.75rem;
-}
-
-h4 {
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-a {
-    color: var(--primary-color);
-    text-decoration: none;
-    transition: var(--transition-fast);
-}
-
-a:hover {
-    color: var(--primary-hover);
-    text-decoration: underline;
-}
-
-/* Layout */
-main {
-    max-width: 1280px;
-    margin: 2rem auto;
-    padding: 0 1.5rem;
-}
-
-section {
-    margin-bottom: 2.5rem;
-}
-
-.content-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.25rem;
-    margin-top: 1.25rem;
-}
-
-@media (max-width: 640px) {
-    .content-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 1rem;
-    }
-}
-
-.now-playing-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1.25rem;
-}
-
-@media (max-width: 768px) {
-    .now-playing-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Nav bar */
-nav {
-    background-color: var(--border-color);
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}
-
-.nav-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 1.25rem;
-    font-weight: 500;
-}
-
-.nav-brand img {
-    height: 2rem;
-    width: auto;
-}
-
-.nav-links {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.nav-links a {
-    color: var(--text-color);
-    text-decoration: none;
-    font-weight: 500;
-    transition: var(--transition-fast);
-    position: relative;
-}
-
-.nav-links a:hover {
-    color: var(--primary-color);
-}
-
-.nav-links a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background-color: var(--primary-color);
-    transition: var(--transition-fast);
-}
-
-.nav-links a:hover::after {
-    width: 100%;
-}
-
-.nav-links a.active {
-    color: var(--primary-color);
-}
-
-.nav-links a.active::after {
-    width: 100%;
-}
-
-.user-menu {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.avatar {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-/* Auth Prompt */
-.auth-prompt {
-    text-align: center;
-    padding: 3rem 2rem;
-    background-color: var(--card-bg);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-md);
-    max-width: 500px;
-    margin: 3rem auto;
-    animation: fadeInUp 0.5s ease-out;
-}
-
-.auth-prompt h2 {
-    font-size: 1.75rem;
-    margin-bottom: 1rem;
-    justify-content: center;
-}
-
-.auth-prompt p {
-    color: var(--text-secondary);
-    margin-bottom: 1.5rem;
-}
-
-.spotify-auth-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
-    background-color: var(--secondary-color);
-    color: white;
-    padding: 0.75rem 1.75rem;
-    border-radius: var(--border-radius-full);
-    text-decoration: none;
-    font-weight: 500;
-    transition: var(--transition-smooth);
-    margin-top: 1rem;
-    box-shadow: var(--shadow-sm);
-}
-
-.spotify-auth-btn:hover {
-    background-color: var(--secondary-hover);
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-    text-decoration: none;
-}
-
-/* Search Section */
-.search-section {
-    margin-bottom: 2.5rem;
-}
-
-.search-container {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.search-container input {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: none;
-    border-radius: var(--border-radius-md);
-    background-color: var(--bg-lighter);
-    color: var(--text-color);
-    font-size: 1rem;
-    transition: var(--transition-fast);
-}
-
-.search-container input:focus {
-    outline: 2px solid var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(114, 137, 218, 0.25);
-}
-
-.search-container button {
-    padding: 0.75rem 1.25rem;
-    font-size: 1rem;
-}
-
-/* Cards */
-.playlist-card, .song-card {
-    background-color: var(--card-bg);
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    transition: var(--transition-smooth);
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.playlist-card:hover, .song-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md);
-    background-color: var(--card-hover);
-}
-
-.playlist-card img, .song-card img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    display: block;
-    transition: var(--transition-fast);
-}
-
-.playlist-card:hover img, .song-card:hover img {
-    filter: brightness(1.1);
-}
-
-.playlist-info, .song-info {
-    padding: 0.75rem 1rem;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.playlist-info h4, .song-info h4 {
-    margin: 0 0 0.25rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 500;
-}
-
-.playlist-info p, .song-info p {
-    margin: 0 0 0.75rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.playlist-info button, .song-info button {
-    margin-top: auto;
-    width: 100%;
-}
-
-/* Player Card */
-.player-card {
-    display: flex;
-    background-color: var(--card-bg);
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    transition: var(--transition-smooth);
-    box-shadow: var(--shadow-sm);
-}
-
-.player-card:hover {
-    box-shadow: var(--shadow-md);
-    background-color: var(--card-hover);
-}
-
-.player-card img {
-    width: 120px;
-    height: 120px;
-    object-fit: cover;
-}
-
-.track-details {
-    flex: 1;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-}
-
-.track-details h3 {
-    margin: 0 0 0.25rem;
-    font-size: 1.125rem;
-}
-
-.track-details .author {
-    margin: 0 0 0.5rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-}
-
-.track-details .guild {
-    margin: 0 0 0.75rem;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.controls {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: auto;
-}
-
-.controls button {
-    flex: 1;
-    padding: 0.5rem;
-    font-size: 0.8125rem;
-}
-
-/* Tabs */
-.tabs {
-    display: flex;
-    border-bottom: 2px solid var(--border-color);
-    margin-bottom: 1.5rem;
-    overflow-x: auto;
-    scrollbar-width: none; /* For Firefox */
-    -ms-overflow-style: none; /* For Internet Explorer and Edge */
-}
-
-.tabs::-webkit-scrollbar {
-    display: none; /* For Chrome, Safari, and Opera */
-}
-
-.tab {
-    padding: 0.75rem 1.25rem;
-    cursor: pointer;
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: var(--transition-fast);
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.tab:hover {
-    color: var(--text-color);
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.tab.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
-}
-
-.tab-content {
-    display: none;
-}
-
-.tab-content.active {
-    display: block;
-    animation: fadeIn 0.3s;
-}
-
-/* Button styles */
-button {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius-sm);
-    padding: 0.625rem 1.25rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: var(--transition-fast);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    line-height: 1;
-}
-
-button:hover {
-    background-color: var(--primary-hover);
-    transform: translateY(-1px);
-}
-
-button:active {
-    transform: translateY(0);
-}
-
-button:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(114, 137, 218, 0.25);
-}
-
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.refresh-button {
-    background-color: transparent;
-    color: var(--text-secondary);
-    padding: 0.25rem;
-    font-size: 0.875rem;
-    border-radius: 50%;
-    margin-left: auto;
-}
-
-.refresh-button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-color);
-}
-
-.refresh-button:focus {
-    box-shadow: none;
-}
-
-.refresh-button.spinning i {
-    animation: spin 0.8s linear infinite;
-}
-
-/* Loading states */
-.loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 0;
-    grid-column: 1 / -1;
-    color: var(--text-secondary);
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: var(--primary-color);
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-}
-
-/* Empty states */
-.no-results {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 0;
-    grid-column: 1 / -1;
-    color: var(--text-secondary);
-    text-align: center;
-}
-
-.no-results i {
-    font-size: 3rem;
-    opacity: 0.5;
-    margin-bottom: 1rem;
-}
-
-.no-results p {
-    margin: 0;
-}
-
-/* Error states */
-.error-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    background-color: rgba(237, 66, 69, 0.1);
-    border-radius: var(--border-radius-md);
-    color: var(--error-color);
-    text-align: center;
-    cursor: pointer;
-    transition: var(--transition-fast);
-}
-
-.error-message:hover {
-    background-color: rgba(237, 66, 69, 0.15);
-}
-
-.error-message i {
-    font-size: 2rem;
-    margin-bottom: 0.75rem;
-}
-
-/* Toast notifications */
-.toast {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    background-color: var(--bg-lighter);
-    color: var(--text-color);
-    padding: 0;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-md);
-    max-width: 350px;
-    width: calc(100% - 3rem);
-    z-index: 1000;
-    opacity: 0;
-    transform: translateY(1rem);
-    transition: var(--transition-smooth);
-    overflow: hidden;
-}
-
-.toast.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.toast-content {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    gap: 0.75rem;
-}
-
-.toast.success {
-    border-left: 4px solid var(--success-color);
-}
-
-.toast.error {
-    border-left: 4px solid var(--error-color);
-}
-
-.toast.info {
-    border-left: 4px solid var(--primary-color);
-}
-
-.toast.success .toast-content i {
-    color: var(--success-color);
-}
-
-.toast.error .toast-content i {
-    color: var(--error-color);
-}
-
-.toast.info .toast-content i {
-    color: var(--primary-color);
-}
-
-.toast-close {
-    position: absolute;
-    top: 0.25rem;
-    right: 0.25rem;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.25rem;
-    padding: 0.25rem;
-    cursor: pointer;
-    line-height: 1;
-    transition: var(--transition-fast);
-    border-radius: 50%;
-}
-
-.toast-close:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-color);
-}
-
-/* Footer */
-footer {
-    text-align: center;
-    padding: 2rem 1.5rem;
-    margin-top: 3rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    border-top: 1px solid var(--border-color);
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    border-radius: var(--border-radius-full);
-    font-size: 0.75rem;
-    font-weight: 500;
-    line-height: 1;
-    margin-left: 0.5rem;
-}
-
-.status-badge::before {
-    content: '';
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-}
-
-.status-badge.online {
-    background-color: rgba(67, 181, 129, 0.2);
-    color: var(--success-color);
-}
-
-.status-badge.online::before {
-    background-color: var(--success-color);
-}
-
-.status-badge.offline {
-    background-color: rgba(237, 66, 69, 0.2);
-    color: var(--error-color);
-}
-
-.status-badge.offline::before {
-    background-color: var(--error-color);
-}
-
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-/* Hover effects */
-.hvr-float {
-    display: inline-block;
-    vertical-align: middle;
-    transform: perspective(1px) translateZ(0);
-    box-shadow: 0 0 1px rgba(0, 0, 0, 0);
-    transition-duration: 0.3s;
-    transition-property: transform;
-    transition-timing-function: ease-out;
-}
-
-.hvr-float:hover, .hvr-float:focus, .hvr-float:active {
-    transform: translateY(-8px);
-}
-
-/* Media Queries */
-@media (max-width: 768px) {
-    h2 {
-        font-size: 1.25rem;
-    }
-    
-    .search-container {
-        flex-direction: column;
-    }
-    
-    .player-card {
-        flex-direction: column;
-    }
-    
-    .player-card img {
-        width: 100%;
-        height: auto;
-    }
-    
-    .controls {
-        flex-wrap: wrap;
-    }
-    
-    .controls button {
-        flex: 1 0 auto;
-    }
-    
-    .toast {
-        bottom: 1rem;
-        right: 1rem;
-        width: calc(100% - 2rem);
-    }
-}
-
-/* Utility Classes */
-.mt-1 { margin-top: 0.25rem; }
-.mt-2 { margin-top: 0.5rem; }
-.mt-3 { margin-top: 1rem; }
-.mt-4 { margin-top: 1.5rem; }
-.mt-5 { margin-top: 2rem; }
-
-.mb-1 { margin-bottom: 0.25rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 1rem; }
-.mb-4 { margin-bottom: 1.5rem; }
-.mb-5 { margin-bottom: 2rem; }
-
-.ml-auto { margin-left: auto; }
-.mr-auto { margin-right: auto; }
-
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.d-flex { display: flex; }
-.flex-column { flex-direction: column; }
-.align-center { align-items: center; }
-.justify-center { justify-content: center; }
-.justify-between { justify-content: space-between; }
-.gap-1 { gap: 0.25rem; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 1rem; }
-.gap-4 { gap: 1.5rem; }
-
-.w-100 { width: 100%; }
-.h-100 { height: 100%; }
-
-/* Dark mode enhancements */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #36393f;
-        --bg-lighter: #40444b;
-        --card-bg: #2f3136;
-        --card-hover: #32353b;
-        --text-color: #ffffff;
-        --text-secondary: #b9bbbe;
-        --text-muted: #8e9297;
-        --border-color: #202225;
-    }
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-color);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--bg-lighter);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-}
-
-/* Focus styles */
-:focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
-</style>

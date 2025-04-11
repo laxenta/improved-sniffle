@@ -33,17 +33,74 @@ class SpotifyAuthManager {
         return this.spotifyApi.createAuthorizeURL(scopes, state);
     }
 
-    async handleCallback(code) {
+    async handleCallback(code, user) {
+        if (!code) {
+            throw new Error('Authorization code is required');
+        }
+        
+        if (!user) {
+            throw new Error('User object is required for Spotify authentication');
+        }
+    
         try {
+            console.log('Handling Spotify callback:', {
+                hasCode: !!code,
+                hasUser: !!user,
+                userId: user?._id
+            });
+    
             const data = await this.spotifyApi.authorizationCodeGrant(code);
+            const profile = await this.getUserProfile(data.body.access_token);
             
-            return {
+            // Create the session's Spotify data
+            const spotifyData = {
                 accessToken: data.body.access_token,
                 refreshToken: data.body.refresh_token,
-                expiresIn: data.body.expires_in
+                expiresAt: new Date(Date.now() + (data.body.expires_in * 1000)),
+                profile: profile,
+                needsReconnect: false
+            };
+    
+            // Find or create user's current session
+            let session = user.sessions?.find(s => s.sessionId === user.currentSessionId);
+            if (!session) {
+                if (!Array.isArray(user.sessions)) {
+                    user.sessions = [];
+                }
+                session = {
+                    sessionId: user.currentSessionId,
+                    createdAt: new Date(),
+                    lastActive: new Date(),
+                    isActive: true
+                };
+                user.sessions.push(session);
+            }
+    
+            // Update session's Spotify data
+            session.spotify = spotifyData;
+            
+            // Also update user's main Spotify auth
+            user.spotifyAuth = {
+                accessToken: data.body.access_token,
+                refreshToken: data.body.refresh_token,
+                expiresAt: new Date(Date.now() + (data.body.expires_in * 1000)),
+                profile: profile
+            };
+    
+            await user.save();
+            
+            console.log('Spotify auth successful:', {
+                userId: user._id,
+                sessionId: session.sessionId,
+                expiresAt: spotifyData.expiresAt
+            });
+    
+            return {
+                success: true,
+                expiresAt: spotifyData.expiresAt
             };
         } catch (error) {
-            console.error('Spotify auth callback error:', error);
+            console.error('Spotify auth error:', error);
             throw error;
         }
     }

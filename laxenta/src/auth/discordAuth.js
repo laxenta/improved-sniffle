@@ -39,37 +39,23 @@ class DiscordAuthManager {
 
     async handleAuth(accessToken, refreshToken, profile, done) {
         try {
-            // The last argument might be the request object or done callback
-            const req = arguments[3];
-            
             let user = await User.findOne({ discordId: profile.id });
-            // Safely access headers or use fallback
-            const clientIp = req && (req.headers?.['x-client-ip'] || req.ip) || 'unknown';
     
             if (!user) {
                 user = new User({
                     discordId: profile.id,
                     username: profile.username,
                     email: profile.email,
-                    avatar: profile.avatar,
-                    sessions: []
+                    avatar: profile.avatar
                 });
             }
     
-            // Update user info
+            // Update basic info
             user.username = profile.username;
             user.email = profile.email;
             user.avatar = profile.avatar;
-    
-            // Find or create session using the User model method
-            if (req && req.sessionID) {
-                const session = user.findOrCreateSession(req.sessionID, clientIp);
-                if (!session) {
-                    throw new Error('Failed to create or find session');
-                }
-            }
-    
-            await user.cleanupSessions();
+            user.lastActive = new Date();
+            
             await user.save();
             done(null, user);
     

@@ -36,14 +36,16 @@ class DiscordAuthManager {
         });
     }
 
+
     async handleAuth(accessToken, refreshToken, profile, done) {
         try {
-            // Store IP in session to retrieve in the webserver's handleDiscordAuth
-            const req = arguments[3]; // passport-discord passes req as the 4th arg
+            // The last argument might be the request object or done callback
+            const req = arguments[3];
             
             let user = await User.findOne({ discordId: profile.id });
-            const clientIp = req.header('X-Client-IP') || req.ip;
-
+            // Safely access headers or use fallback
+            const clientIp = req && (req.headers?.['x-client-ip'] || req.ip) || 'unknown';
+    
             if (!user) {
                 user = new User({
                     discordId: profile.id,
@@ -53,33 +55,24 @@ class DiscordAuthManager {
                     sessions: []
                 });
             }
-
+    
             // Update user info
             user.username = profile.username;
             user.email = profile.email;
             user.avatar = profile.avatar;
-
-            // Clean up inactive sessions
-            user.sessions = user.sessions.filter(s => s.isActive);
-            
-            // Find or create session
-            let session = user.sessions.find(s => s.sessionId === req.sessionID);
-            if (!session) {
-                session = {
-                    sessionId: req.sessionID,
-                    ip: clientIp,
-                    isActive: true,
-                    createdAt: new Date(),
-                    lastActive: new Date()
-                };
-                user.sessions.push(session);
-            } else {
-                session.lastActive = new Date();
+    
+            // Find or create session using the User model method
+            if (req && req.sessionID) {
+                const session = user.findOrCreateSession(req.sessionID, clientIp);
+                if (!session) {
+                    throw new Error('Failed to create or find session');
+                }
             }
-
+    
+            await user.cleanupSessions();
             await user.save();
             done(null, user);
-
+    
         } catch (error) {
             console.error('Discord auth error:', error);
             done(error);

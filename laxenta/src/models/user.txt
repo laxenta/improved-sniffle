@@ -1,0 +1,113 @@
+const mongoose = require('mongoose');
+
+const sessionSchema = new mongoose.Schema({
+    sessionId: { type: String, required: true },
+    ip: String,
+    isActive: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now },
+    lastActive: { type: Date, default: Date.now },
+    spotify: {
+        accessToken: String,
+        refreshToken: String,
+        expiresAt: Date,
+        profile: mongoose.Schema.Types.Mixed,
+        needsReconnect: { type: Boolean, default: false }
+    }
+});
+
+const userSchema = new mongoose.Schema({
+    discordId: { type: String, required: true, unique: true },
+    username: String,
+    email: String,
+    avatar: String,
+    createdAt: { type: Date, default: Date.now },
+    sessions: [sessionSchema]
+});
+
+userSchema.methods.findOrCreateSession = function(sessionId, ipAddress) {
+    if (!sessionId) {
+        console.error('SessionId is required');
+        return null;
+    }
+
+    // Clean up any null/undefined sessions first
+    this.sessions = this.sessions.filter(s => s && s.sessionId);
+    
+    // Look for existing session
+    let session = this.sessions.find(s => s.sessionId === sessionId);
+    
+    if (!session) {
+        // Create new session
+        session = {
+            sessionId: sessionId,
+            ip: ipAddress || 'unknown',
+            isActive: true,
+            createdAt: new Date(),
+            lastActive: new Date()
+        };
+        this.sessions.push(session);
+        console.log('New session created:', {
+            userId: this.discordId,
+            username: this.username,
+            sessionId: sessionId,
+            totalSessions: this.sessions.length
+        });
+    } else {
+        // Update existing session
+        session.lastActive = new Date();
+        session.isActive = true;
+        if (ipAddress) {
+            session.ip = ipAddress;
+        }
+    }
+    
+    return session;
+};
+
+// Add a method to find or create a session
+userSchema.methods.cleanupSessions = async function() {
+    const oldLength = this.sessions.length;
+    
+    // Keep sessions active in the last 24 hours by default
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    // First remove any duplicate sessionIds, keeping the most recent
+    const uniqueSessions = new Map();
+    this.sessions.forEach(session => {
+        const existing = uniqueSessions.get(session.sessionId);
+        if (!existing || existing.lastActive < session.lastActive) {
+            uniqueSessions.set(session.sessionId, session);
+        }
+    });
+    
+    // Convert back to array and filter inactive/old sessions
+    this.sessions = Array.from(uniqueSessions.values()).filter(session => {
+        return session.isActive && session.lastActive > oneDayAgo;
+    });
+    
+    // Sort by lastActive (newest first)
+    this.sessions.sort((a, b) => b.lastActive - a.lastActive);
+    
+    // Keep maximum 10 sessions
+    if (this.sessions.length > 10) {
+        this.sessions = this.sessions.slice(0, 10);
+    }
+    
+    console.log(`Session cleanup for ${this.username}:`, {
+        before: oldLength,
+        after: this.sessions.length,
+        currentSessionIds: this.sessions.map(s => s.sessionId)
+    });
+    
+    // Save changes if needed
+    if (oldLength !== this.sessions.length) {
+        return this.save();
+    }
+    
+    return this;
+};
+
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;

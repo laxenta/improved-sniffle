@@ -2,7 +2,6 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const path = require('path');
-const FileStore = require('session-file-store')(session);
 const crypto = require('crypto');
 const SpotifyAuthManager = require('../auth/spotifyAuth');
 const DiscordAuthManager = require('../auth/discordAuth');
@@ -60,16 +59,16 @@ class WebServer {
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
     
-        // 2. Session setup with file store
+        // 2. Session setup with consistent settings
         this.app.use(session({
             secret: process.env.SESSION_SECRET,
-            resave: false,
-            saveUninitialized: false,
-            store: new FileStore({
-                path: './sessions',
+            resave: false,  // Changed to false
+            saveUninitialized: false, // Changed to false
+            store: MongoStore.create({
+                mongoUrl: process.env.MONGODB_URI,
                 ttl: 14 * 24 * 60 * 60,
-                retries: 0,
-                fileExtension: '.json'
+                autoRemove: 'native',
+                touchAfter: 24 * 3600
             }),
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
@@ -79,24 +78,23 @@ class WebServer {
             },
             name: 'sessionID'
         }));
-    
-        // Debug middleware (optional, for development only)
-        if (process.env.NODE_ENV !== 'production') {
-            this.app.use((req, res, next) => {
-                console.log('Auth Debug:', {
-                    url: req.url,
-                    method: req.method,
-                    sessionID: req.sessionID,
-                    hasSpotifyState: !!req.session?.spotifyState,
-                    isAuthenticated: req.isAuthenticated?.(),
-                    hasUser: !!req.user
-                });
-                next();
-            });
-        }
+
+   //Debug middleware (optional, for development only)
+   // Added after session middleware
+if (process.env.NODE_ENV !== 'production') {
+    this.app.use((req, res, next) => {
+        console.log('Auth Debug:', {
+            url: req.url,
+            method: req.method,
+            sessionID: req.sessionID,
+            hasSpotifyState: !!req.session?.spotifyState,
+            isAuthenticated: req.isAuthenticated?.(),
+            hasUser: !!req.user
+        });
+        next();
+    });
+}
     }
-    // Set up template routes
-    // This method generates routes for each EJS template in the templates directory    
 
     setupTemplateRoutes() {
         const { generateTemplateRoutes } = require('./templateRouter');
@@ -400,6 +398,7 @@ class WebServer {
 async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
     try {
         let user = await User.findOne({ discordId: profile.id });
+        const clientIp = req.get('X-Client-IP') || req.ip;
 
         if (!user) {
             user = new User({
@@ -407,55 +406,31 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
                 username: profile.username,
                 email: profile.email,
                 avatar: profile.avatar,
-                // Create a simpler sessions array
-                sessions: [{
-                    sessionId: req.sessionID,
-                    createdAt: new Date(),
-                    lastActive: new Date(),
-                    clientIp: req.get('X-Client-IP') || req.ip,
-                    isActive: true
-                }]
+                // sessions: []
             });
-        } else {
-            // Update user info
-            user.username = profile.username;
-            user.email = profile.email;
-            user.avatar = profile.avatar;
-            
-            // Simple session handling - just check if exists then update or add
-            const existingSession = user.sessions.find(s => s.sessionId === req.sessionID);
-            if (existingSession) {
-                existingSession.lastActive = new Date();
-                existingSession.isActive = true;
-            } else {
-                // Push directly to avoid validation issues
-                user.sessions.push({
-                    sessionId: req.sessionID,
-                    createdAt: new Date(),
-                    lastActive: new Date(),
-                    clientIp: req.get('X-Client-IP') || req.ip,
-                    isActive: true
-                });
-            }
         }
+
+        // Update user info
+        user.username = profile.username;
+        user.email = profile.email;
+        user.avatar = profile.avatar;
+        
+        // Use the new method to find or create a session
+        user.findOrCreateSession(req.sessionID, clientIp);
         
         await user.save();
         
-        // Keep session cleanup but simplify it
-        if (user.sessions.length > 5) {
-            // Only keep the 5 most recent sessions
-            user.sessions.sort((a, b) => b.lastActive - a.lastActive);
-            user.sessions = user.sessions.slice(0, 5);
-            await user.save();
-        }
+        // Clean up old sessions
+        await user.cleanupSessions();
         
         done(null, user);
+
     } catch (error) {
         console.error('Discord auth error:', error);
         done(error);
     }
 }
-    
+
 
     setup() {
         // Serve static files

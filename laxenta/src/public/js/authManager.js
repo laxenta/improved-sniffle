@@ -215,7 +215,7 @@ class AuthManager {
 
             return data;
         } catch (error) {
-            console.error('Session verify error:', error);
+            console.error('Session verify error from authmanager.js:', error);
             throw error;
         }
     }

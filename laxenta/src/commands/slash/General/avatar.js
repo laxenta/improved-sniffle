@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { getDiscordAvatarURL } = require('../../../servers/templateRouter');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,7 +14,7 @@ module.exports = {
   async execute(interaction) {
     try {
       const user = interaction.options.getUser('target') || interaction.user;
-      const avatarUrl = user.displayAvatarURL({ format: 'png', size: 1024, dynamic: true });
+      const avatarUrl = getDiscordAvatarURL(user.id, user.avatar);
       
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
@@ -22,13 +23,12 @@ module.exports = {
         .setImage(avatarUrl)
         .setFooter({ 
           text: `Requested by ${interaction.user.tag}`, 
-          iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+          iconURL: getDiscordAvatarURL(interaction.user.id, interaction.user.avatar)
         })
         .setTimestamp();
       
       await interaction.reply({
         embeds: [embed],
-        //flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error('Error displaying avatar:', error);

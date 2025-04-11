@@ -1,1109 +1,775 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title><%= botName %> - Ultimate Discord Music Experience</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>
+        <%= botName %> - Discord Music Bot
+    </title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --spotify-green: #1DB954;
-            --spotify-dark: #1aa34a;
-            --discord-blue: #5865F2;
-            --discord-purple: #7289DA;
-            --dark-bg: #23272A;
-            --darker-bg: #1a1d20;
-            --text-primary: #ffffff;
-            --text-secondary: #b9bbbe;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+            --primary: #8C52FF;
+            --primary-dark: #6E41CC;
+            --secondary: #FF5E8C;
+            --dark: #171717;
+            --light: #F9FAFB;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--dark-bg);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+            background-color: var(--dark);
+            color: var(--light);
+            font-family: 'Inter', sans-serif;
             overflow-x: hidden;
         }
 
-        /* Background Animation */
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            opacity: 0.4;
+        .bg-primary {
+            background-color: var(--primary);
         }
 
-        .bg-animation span {
-            position: absolute;
-            display: block;
-            width: 20px;
-            height: 20px;
-            background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(29, 185, 84, 0.7), 0 0 20px rgba(29, 185, 84, 0.5), 0 0 30px rgba(29, 185, 84, 0.3);
-            animation: float 15s linear infinite;
+        .bg-primary-dark {
+            background-color: var(--primary-dark);
         }
 
-        @keyframes float {
-            0% {
-                transform: translateY(100vh) translateX(0) scale(0);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100vh) translateX(100px) scale(1);
-                opacity: 0;
-            }
+        .bg-secondary {
+            background-color: var(--secondary);
         }
 
-        .navbar {
-            background: rgba(26, 29, 32, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        .text-primary {
+            color: var(--primary);
         }
 
-        .navbar-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        .text-secondary {
+            color: var(--secondary);
         }
 
-        .brand-logo {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid var(--spotify-green);
+        .hero-gradient {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
         }
 
-        .brand-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .navbar-links {
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        .navbar-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .navbar-links a:hover {
-            color: var(--text-primary);
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            cursor: pointer;
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
             transition: all 0.3s ease;
         }
 
-        .user-profile:hover {
-            background: rgba(255, 255, 255, 0.1);
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(140, 82, 255, 0.3);
         }
 
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: 2px solid var(--discord-purple);
-        }
-
-        .discord-tag {
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .main-content {
-            margin-top: 80px;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: calc(100vh - 80px);
-        }
-
-        .hero-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            margin-bottom: 3rem;
-            max-width: 800px;
-        }
-
-        .bot-avatar {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            margin-bottom: 1.5rem;
-            border: 4px solid var(--spotify-green);
-            box-shadow: 0 0 30px rgba(29, 185, 84, 0.4);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 20px rgba(29, 185, 84, 0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(29, 185, 84, 0.6); }
-            100% { transform: scale(1); box-shadow: 0 0 20px rgba(29, 185, 84, 0.4); }
-        }
-
-        .bot-title {
-            font-size: 3.5rem;
-            margin: 1rem 0;
-            font-weight: 800;
-            background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: fadeIn 1s ease-out;
-        }
-
-        .bot-subtitle {
-            font-size: 1.2rem;
-            color: var(--text-secondary);
-            margin-bottom: 1.5rem;
-            max-width: 600px;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            margin-bottom: 2rem;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: var(--spotify-green);
+        .nav-link {
             position: relative;
         }
 
-        .status-dot::after {
+        .nav-link::after {
             content: '';
             position: absolute;
-            top: -5px;
-            left: -5px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background-color: var(--spotify-green);
-            opacity: 0.3;
-            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background-color: var(--primary);
+            transition: width 0.3s ease;
         }
 
-        @keyframes ping {
-            0% { transform: scale(1); opacity: 0.3; }
-            75%, 100% { transform: scale(2); opacity: 0; }
+        .nav-link:hover::after {
+            width: 100%;
         }
 
-        .status-text {
-            font-size: 0.9rem;
-            font-weight: 500;
+        .card {
+            background: rgba(23, 23, 23, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
         }
 
-        .stats-container {
-            display: flex;
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-            flex-wrap: wrap;
-            justify-content: center;
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(140, 82, 255, 0.2);
         }
 
-        .stat-card {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 1.5rem;
-            border-radius: 15px;
-            min-width: 200px;
-            text-align: center;
+        .command-card {
+            background: rgba(23, 23, 23, 0.5);
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.05);
             transition: all 0.3s ease;
         }
 
-        .stat-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.1);
+        .command-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(140, 82, 255, 0.3);
         }
 
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin: 2rem 0;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .feature {
-            background: rgba(26, 29, 32, 0.7);
-            padding: 2rem;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            position: relative;
-            overflow: hidden;
-            z-index: 1;
-        }
-
-        .feature::before {
-            content: '';
+        /* Animated background */
+        .animated-bg {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, var(--spotify-green), var(--discord-blue));
-            opacity: 0;
             z-index: -1;
-            transition: opacity 0.3s ease;
+            overflow: hidden;
         }
 
-        .feature:hover {
-            transform: translateY(-7px);
-            border-color: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .feature:hover::before {
-            opacity: 0.1;
-        }
-
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
-            color: var(--spotify-green);
-            display: inline-block;
-            position: relative;
-        }
-
-        .feature-icon i {
-            position: relative;
-            z-index: 2;
-        }
-
-        .feature-icon::after {
-            content: '';
+        .animated-bg .orb {
             position: absolute;
-            width: 50px;
-            height: 50px;
-            background: rgba(29, 185, 84, 0.1);
             border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1;
+            filter: blur(60px);
+            opacity: 0.4;
         }
 
-        .feature h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            position: relative;
-            display: inline-block;
+        .orb-1 {
+            background: var(--primary);
+            top: -10%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            animation: float 15s infinite alternate;
         }
 
-        .feature p {
-            color: var(--text-secondary);
-            line-height: 1.6;
+        .orb-2 {
+            background: var(--secondary);
+            bottom: -15%;
+            right: -15%;
+            width: 700px;
+            height: 700px;
+            animation: float 18s infinite alternate-reverse;
         }
 
-        .now-playing {
-            background: rgba(26, 29, 32, 0.9);
-            border-radius: 15px;
-            padding: 1.5rem;
-            max-width: 500px;
-            width: 90%;
-            margin: 3rem auto;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            33% {
+                transform: translate(5%, 5%) scale(1.05);
+            }
+
+            66% {
+                transform: translate(-5%, 5%) scale(0.95);
+            }
+
+            100% {
+                transform: translate(0%, -5%) scale(1);
+            }
         }
 
-        .now-playing-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .now-playing-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .now-playing-badge {
-            background: rgba(29, 185, 84, 0.2);
-            color: var(--spotify-green);
-            padding: 0.25rem 0.5rem;
-            border-radius: 50px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .song-info {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .song-cover {
-            width: 60px;
-            height: 60px;
-            border-radius: 10px;
-            object-fit: cover;
-        }
-
-        .song-details {
-            flex: 1;
-        }
-
-        .song-name {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .song-artist {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .player-controls {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            border-radius: 5px;
-            margin: 0.5rem 0;
-            position: relative;
-        }
-
-        .server-list {
-            width: 100%;
-            max-width: 1000px;
-            margin: 3rem auto;
-        }
-
-        .server-list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .server-list-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-        }
-
-        .server-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .server-card {
-            background: rgba(26, 29, 32, 0.7);
-            border-radius: 15px;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .server-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .server-banner {
-            height: 80px;
-            background: linear-gradient(45deg, var(--discord-blue), var(--discord-purple));
-            position: relative;
-        }
-
+        /* Server list styling */
         .server-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 15px;
-            border: 4px solid var(--darker-bg);
-            position: absolute;
-            bottom: -30px;
-            left: 20px;
-            background-color: var(--darker-bg);
+            transition: all 0.3s ease;
         }
 
-        .server-info {
-            padding: 2rem 1.5rem 1.5rem;
+        .server-icon:hover {
+            transform: scale(1.1);
         }
 
-        .server-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+        /* Command filters */
+        .filter-btn {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .server-meta {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
+        .filter-btn.active {
+            background-color: var(--primary);
+            color: white;
         }
 
-        .server-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
+        .filter-btn:hover:not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
-        .server-status {
-            padding-top: 0.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
+        /* Now playing section */
+        .now-playing-card {
+            background: rgba(23, 23, 23, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .cta-section {
-            margin: 4rem 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            background: rgba(26, 29, 32, 0.7);
-            padding: 3rem;
-            border-radius: 20px;
-            max-width: 900px;
-            position: relative;
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
             overflow: hidden;
         }
 
-        .cta-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
+        .progress-fill {
             height: 100%;
-            background: linear-gradient(135deg, var(--spotify-green), var(--discord-blue));
-            opacity: 0.05;
-            z-index: -1;
-        }
-
-        .cta-title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 1rem;
-            background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .cta-description {
-            max-width: 600px;
-            margin-bottom: 2rem;
-            color: var(--text-secondary);
-            line-height: 1.6;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .cta-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 1rem 2rem;
-            background: var(--spotify-green);
-            color: white;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 7px 20px rgba(29, 185, 84, 0.4);
-            background: var(--spotify-dark);
-        }
-
-        .cta-button.secondary {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .cta-button.secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .footer {
-            background: var(--darker-bg);
-            padding: 3rem 2rem;
-            margin-top: auto;
-        }
-
-        .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            flex-wrap: wrap;
-            gap: 2rem;
-        }
-
-        .footer-brand {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .footer-logo {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .footer-brand-text {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .footer-description {
-            max-width: 300px;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-
-        .footer-links {
-            display: flex;
-            gap: 3rem;
-        }
-
-        .footer-links-column {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .footer-links-title {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .footer-link {
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: color 0.2s ease;
-            font-size: 0.9rem;
-        }
-
-        .footer-link:hover {
-            color: var(--text-primary);
-        }
-
-        .social-links {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .social-link {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            transition: all 0.3s ease;
-        }
-
-        .social-link:hover {
-            background: var(--spotify-green);
-            color: white;
-            transform: translateY(-3px);
-        }
-
-        .copyright {
-            margin-top: 3rem;
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        /* Media Queries */
-        @media (max-width: 768px) {
-            .navbar {
-                padding: 1rem;
-            }
-
-            .navbar-links {
-                display: none;
-            }
-
-            .bot-title {
-                font-size: 2.5rem;
-            }
-
-            .feature-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .server-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .footer-content {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .footer-links {
-                flex-direction: column;
-                gap: 2rem;
-            }
-        }
-
-        /* Animations for elements */
-        .animate-fadeInUp {
-            animation: fadeInUp 0.8s ease forwards;
-            opacity: 0;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .delay-1 { animation-delay: 0.1s; }
-        .delay-2 { animation-delay: 0.2s; }
-        .delay-3 { animation-delay: 0.3s; }
-        .delay-4 { animation-delay: 0.4s; }
-        .delay-5 { animation-delay: 0.5s; }
-
-        /* Remove these style blocks */
-        .progress-container,
-        .progress-bar,
-        .time-info {
-            display: none;
-        }
-
-        .user-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 100%;
-            background: var(--darker-bg);
-            border-radius: 10px;
-            padding: 0.5rem;
-            min-width: 200px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            z-index: 1000;
-        }
-
-        .user-dropdown:hover .dropdown-menu {
-            display: block;
-        }
-
-        .dropdown-menu a {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.2s ease;
-        }
-
-        .dropdown-menu a:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-primary);
-        }
-
-        .logout-btn {
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            margin-top: 0.5rem;
-            color: #ff4444 !important;
-        }
-
-        .login-button {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--discord-blue);
-            color: white;
-            padding: 0.5rem 1.5rem;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .login-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(88, 101, 242, 0.4);
-        }
-
-        .spotify-link {
-            color: var(--spotify-green) !important;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
         }
     </style>
 </head>
+
 <body>
-    <!-- Background Animation -->
-    <div class="bg-animation">
-        <span style="top: 15%; left: 10%; animation-duration: 20s; width: 15px; height: 15px;"></span>
-        <span style="top: 30%; left: 25%; animation-duration: 18s; animation-delay: 2s; width: 25px; height: 25px;"></span>
-        <span style="top: 60%; left: 40%; animation-duration: 16s; animation-delay: 4s; width: 20px; height: 20px;"></span>
-        <span style="top: 40%; left: 65%; animation-duration: 22s; animation-delay: 1s; width: 18px; height: 18px;"></span>
-        <span style="top: 75%; left: 80%; animation-duration: 19s; animation-delay: 3s; width: 22px; height: 22px;"></span>
-        <span style="top: 85%; left: 15%; animation-duration: 21s; animation-delay: 5s; width: 15px; height: 15px;"></span>
-        <span style="top: 20%; left: 85%; animation-duration: 17s; animation-delay: 6s; width: 17px; height: 17px;"></span>
-        <span style="top: 50%; left: 50%; animation-duration: 23s; animation-delay: 7s; width: 23px; height: 23px;"></span>
-</div>
-    
-    <!-- Navigation Bar -->
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+    </div>
 
-    <!-- Navigation Bar -->
-<nav class="navbar">
-    <div class="navbar-brand">
-        <img src="<%= botAvatar %>" alt="Bot Logo" class="brand-logo">
-        <span class="brand-name"><%= botName %></span>
-    </div>
-    <div class="navbar-links">
-        <!-- <a href="/commands"><i class="fas fa-terminal"></i> Commands</a> -->
-        <a href="/support"><i class="fas fa-headset"></i> Support</a>
-        <% if (isAuthenticated) { %>
-            <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
-            <% 
-            <!-- // Check if user has Spotify connected in current session -->
-            const hasSpotifySession = user.sessions && 
-                user.sessions.some(s => s.sessionId === sessionID && s.spotify);
-            if (!hasSpotifySession) { 
-            %>
-                <a href="/auth/spotify?returnTo=<%= originalUrl %>" class="spotify-link">
-                    <i class="fab fa-spotify"></i> Connect Spotify
-                </a>
-            <% } %>
-        <% } %>
-    </div>
-    <% if (isAuthenticated) { %>
-        <div class="user-dropdown">
-            <div class="user-profile">
-                <img src="<%= user.avatarURL %>" 
-                     alt="User Avatar" class="user-avatar">
-                <span class="discord-tag"><%= user.username %></span>
-            </div>
-            <div class="dropdown-menu">
-                <a href="/dashboard"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="/profile"><i class="fas fa-user"></i> Profile</a>
-                <% 
-                <!-- // Check if user has Spotify connected in current session -->
-                const hasSpotifySession = user.sessions && 
-                    user.sessions.some(s => s.sessionId === sessionID && s.spotify);
-                if (hasSpotifySession) { 
-                %>
-                    <a href="/spotify"><i class="fab fa-spotify"></i> Spotify Settings</a>
-                    <a href="#" class="disconnect-spotify" data-action="/api/spotify/disconnect">
-                        <i class="fab fa-spotify"></i> Disconnect Spotify
-                    </a>
-                <% } %>
-                <form action="/logout" method="post" class="logout-form">
-                    <button type="submit" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </form>
+    <!-- Navigation -->
+    <nav
+        class="fixed top-0 left-0 right-0 z-50 bg-dark bg-opacity-80 backdrop-filter backdrop-blur-lg border-b border-gray-800">
+        <div class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <img src="<%= botAvatar %>" alt="<%= botName %>" class="h-10 w-10 rounded-full mr-3">
+                    <span class="text-xl font-bold text-white">
+                        <%= botName %>
+                    </span>
+                </div>
+
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="/" class="nav-link text-white hover:text-primary transition-colors">Home</a>
+                    <a href="/commands" class="nav-link text-white hover:text-primary transition-colors">Commands</a>
+                    <a href="/dashboard" class="nav-link text-white hover:text-primary transition-colors">Dashboard</a>
+                    <a href="https://discord.gg/laxenta" target="_blank"
+                        class="nav-link text-white hover:text-primary transition-colors">Support</a>
+                </div>
+
+                <div>
+                    <% if (isAuthenticated && user) { %>
+                        <div class="flex items-center">
+                            <div class="mr-4">
+                                <img src="<%= user.avatarURL %>" alt="<%= user.username %>"
+                                    class="h-8 w-8 rounded-full">
+                            </div>
+                            <div class="hidden md:block">
+                                <p class="text-sm font-medium text-white">
+                                    <%= user.username %>
+                                </p>
+                                <% if (hasSpotify) { %>
+                                    <p class="text-xs text-green-400">Spotify Connected</p>
+                                    <% } else { %>
+                                        <a href="/auth/spotify"
+                                            class="text-xs text-gray-400 hover:text-green-400">Connect Spotify</a>
+                                        <% } %>
+                            </div>
+                            <form method="post" action="/logout" class="ml-4">
+                                <button type="submit" class="text-sm text-gray-400 hover:text-white">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <% } else { %>
+                            <a href="/auth/discord" class="btn-primary py-2 px-4 rounded-md flex items-center">
+                                <i class="fab fa-discord mr-2"></i> Login
+                            </a>
+                            <% } %>
+                </div>
             </div>
         </div>
-    <% } else { %>
-        <a href="/auth/discord?returnTo=<%= originalUrl %>" class="login-button">
-            <i class="fab fa-discord"></i>
-            Login with Discord
-        </a>
-    <% } %>
-</nav>
+    </nav>
 
-<!-- Main Content -->
-<main class="main-content">
     <!-- Hero Section -->
-    <section class="hero-section animate-fadeInUp">
-        <img src="<%= botAvatar %>" alt="Bot Avatar" class="bot-avatar">
-        <h1 class="bot-title"><%= botName %></h1>
-        <p class="bot-subtitle">Experience high-quality music with Spotify integration, advanced queue management, and seamless Discord integration.</p>
-        
-        <div class="status-indicator animate-fadeInUp delay-1">
-            <div class="status-dot"></div>
-            <span class="status-text">Online and serving <%= stats.servers %> servers</span>
-        </div>
-        
-        <div class="stats-container animate-fadeInUp delay-2">
-            <div class="stat-card">
-                <div class="stat-value"><%= stats.servers %></div>
-                <div class="stat-label">Active Servers</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value"><%= stats.users %></div>
-                <div class="stat-label">Users Listening Music rn</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value"><%= stats.songsPlayed %></div>
-                <div class="stat-label">Songs Played</div>
-            </div>
-        </div>
-    </section>
-
-    <% if (nowPlaying && nowPlaying.length > 0) { %>
-        <section class="now-playing animate-fadeInUp delay-3">
-            <div class="now-playing-header">
-                <div class="now-playing-title">
-                    <i class="fas fa-music"></i>
-                    Currently Playing
-                </div>
-                <div class="now-playing-badge">Live</div>
-            </div>
-            <div class="song-info">
-                <img src="<%= nowPlaying[0].thumbnail %>" alt="Song Cover" class="song-cover">
-                <div class="song-details">
-                    <div class="song-name"><%= nowPlaying[0].title %></div>
-                    <div class="song-artist">Playing in <%= nowPlaying[0].guildName %></div>
-                </div>
-            </div>
-        </section>
-    <% } %>
-
-    <!-- <% if (nowPlaying && nowPlaying.length > 0) { %>
-        <section class="now-playing">
-            <% nowPlaying.forEach(player => { %>
-                <div class="player-card">
-                    <img src="<%= player.track.thumbnail %>" alt="<%= player.track.title %>">
-                    <div class="track-info">
-                        <h3><%= player.track.title %></h3>
-                        <p><%= player.track.author %></p>
-                        <p>Playing in <%= player.guildName %></p>
+    <section class="relative min-h-screen pt-24 pb-12 flex items-center">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col-reverse lg:flex-row lg:justify-between items-center">
+                <div class="lg:w-1/2 mt-10 lg:mt-0">
+                    <h1 class="text-4xl md:text-6xl font-bold leading-tight">
+                        Elevate Your <span class="text-primary">Discord</span> Music Experience
+                    </h1>
+                    <p class="text-xl text-gray-300 mt-6">
+                        The ultimate music companion for your Discord server. High-quality streaming, Spotify
+                        integration, and unique features.
+                    </p>
+                    <div class="mt-10 flex flex-wrap gap-4">
+                        <a href="https://discord.com/api/oauth2/authorize?client_id=<%= clientId %>&permissions=8&scope=bot%20applications.commands"
+                            target="_blank" class="btn-primary py-3 px-8 rounded-lg font-medium flex items-center">
+                            <i class="fas fa-plus mr-2"></i> Add to Server
+                        </a>
+                        <a href="/dashboard"
+                            class="bg-transparent border border-white hover:border-primary text-white hover:text-primary py-3 px-8 rounded-lg font-medium transition-all">
+                            Dashboard
+                        </a>
+                    </div>
+                    <div class="mt-12">
+                        <div class="flex items-center space-x-6">
+                            <div class="flex flex-col items-center">
+                                <span class="text-3xl font-bold text-primary">
+                                    <%= stats.servers %>+
+                                </span>
+                                <span class="text-sm text-gray-400">Servers</span>
+                            </div>
+                            <div class="w-px h-12 bg-gray-700"></div>
+                            <div class="flex flex-col items-center">
+                                <span class="text-3xl font-bold text-primary">
+                                    <%= stats.commands %>+
+                                </span>
+                                <span class="text-sm text-gray-400">Commands</span>
+                            </div>
+                            <div class="w-px h-12 bg-gray-700"></div>
+                            <div class="flex flex-col items-center">
+                                <span class="text-3xl font-bold text-primary">24/7</span>
+                                <span class="text-sm text-gray-400">Uptime</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            <% }); %>
+                <div class="lg:w-1/2 flex justify-center lg:justify-end">
+                    <div class="relative">
+                        <div
+                            class="absolute inset-0 bg-gradient-to-br from-primary to-secondary rounded-full opacity-20 blur-3xl">
+                        </div>
+                        <img src="<%= botAvatar %>" alt="<%= botName %>"
+                            class="relative w-64 h-64 md:w-80 md:h-80 rounded-full object-cover border-4 border-white border-opacity-20">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20 bg-black bg-opacity-40">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16">
+                <span class="text-primary">Powerful</span> Features
+            </h2>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="card rounded-xl p-6">
+                    <div class="w-14 h-14 rounded-full bg-primary bg-opacity-20 flex items-center justify-center mb-4">
+                        <i class="fas fa-music text-primary text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">High-Quality Music</h3>
+                    <p class="text-gray-400">Experience crystal clear audio with advanced streaming technology and
+                        buffer-free playback.</p>
+                </div>
+
+                <div class="card rounded-xl p-6">
+                    <div
+                        class="w-14 h-14 rounded-full bg-secondary bg-opacity-20 flex items-center justify-center mb-4">
+                        <i class="fab fa-spotify text-secondary text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Spotify Integration</h3>
+                    <p class="text-gray-400">Connect your Spotify account and seamlessly play your playlists, liked
+                        songs, and more.</p>
+                </div>
+
+                <div class="card rounded-xl p-6">
+                    <div
+                        class="w-14 h-14 rounded-full bg-purple-500 bg-opacity-20 flex items-center justify-center mb-4">
+                        <i class="fas fa-sliders-h text-purple-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Advanced Controls</h3>
+                    <p class="text-gray-400">Extensive equalizer settings, volume control, and DJ mode for the perfect
+                        listening experience.</p>
+                </div>
+
+                <div class="card rounded-xl p-6">
+                    <div class="w-14 h-14 rounded-full bg-blue-500 bg-opacity-20 flex items-center justify-center mb-4">
+                        <i class="fas fa-bolt text-blue-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Lightning Fast</h3>
+                    <p class="text-gray-400">Minimal latency and instant response times for a seamless user experience.
+                        Current ping: <%= stats.ping %>ms</p>
+                </div>
+
+                <div class="card rounded-xl p-6">
+                    <div
+                        class="w-14 h-14 rounded-full bg-green-500 bg-opacity-20 flex items-center justify-center mb-4">
+                        <i class="fas fa-globe text-green-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Multiple Sources</h3>
+                    <p class="text-gray-400">Stream from YouTube, Spotify, SoundCloud, and many other platforms without
+                        limitations.</p>
+                </div>
+
+                <div class="card rounded-xl p-6">
+                    <div class="w-14 h-14 rounded-full bg-pink-500 bg-opacity-20 flex items-center justify-center mb-4">
+                        <i class="fas fa-heart text-pink-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Community Focused</h3>
+                    <p class="text-gray-400">Regular updates based on user feedback and a helpful support community.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- User Servers Section (Only visible when logged in) -->
+    <% if (isAuthenticated && mutualGuilds && mutualGuilds.length> 0) { %>
+        <section class="py-16">
+            <div class="container mx-auto px-6">
+                <h2 class="text-3xl font-bold mb-10">
+                    Your <span class="text-primary">Servers</span>
+                </h2>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <% mutualGuilds.forEach(function(guild) { %>
+                        <a href="/dashboard/server/<%= guild.id %>"
+                            class="card rounded-lg p-4 flex flex-col items-center cursor-pointer">
+                            <div class="relative server-icon">
+                                <% if (guild.isPlaying) { %>
+                                    <div class="absolute top-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-dark"
+                                        title="Currently Playing Music"></div>
+                                    <% } %>
+                                        <!-- <img src="<%= guild.icon || '/api/placeholder/80/80' %>" alt="<%= guild.name %>"
+                                            class="w-20 h-20 rounded-lg"> -->
+                            </div>
+                            <p class="mt-3 text-center font-medium">
+                                <%= guild.name %>
+                            </p>
+                            <span class="mt-1 text-xs text-gray-400">
+                                <%= guild.memberCount %> members
+                            </span>
+                        </a>
+                        <% }); %>
+                </div>
+            </div>
         </section>
-    <% } %> -->
+        <% } %>
 
-    <!-- Features Grid -->
-    <section class="feature-grid animate-fadeInUp delay-4">
-        <div class="feature">
-            <div class="feature-icon">
-                <i class="fab fa-spotify"></i>
+            <!-- Now Playing Showcase (Only visible if there are active players) -->
+            <!-- <% if (nowPlaying && nowPlaying.length > 0) { %>
+    <section class="py-16 bg-black bg-opacity-30">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl font-bold mb-10">
+                Now <span class="text-primary">Playing</span>
+            </h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <% nowPlaying.slice(0, 3).forEach(function(player) { %>
+                    <div class="now-playing-card rounded-xl p-6">
+                        <div class="flex items-start mb-4">
+                            <img src="<%= player.track.thumbnail || '/api/placeholder/120/120' %>" alt="<%= player.track.title %>" class="w-16 h-16 rounded-lg object-cover mr-4">
+                            <div>
+                                <h3 class="font-bold text-white"><%= player.track.title %></h3>
+                                <p class="text-sm text-gray-400"><%= player.track.author %></p>
+                                <p class="text-xs text-primary mt-1">
+                                    <i class="fas fa-server mr-1"></i> <%= player.guildName %>
+                                </p>
+                            </div>
+                            <div class="ml-auto">
+                                <% if (player.playing && !player.paused) { %>
+                                    <i class="fas fa-play text-green-400"></i>
+                                <% } else { %>
+                                    <i class="fas fa-pause text-yellow-400"></i>
+                                <% } %>
+                            </div>
+                        </div>
+                        <div class="progress-bar mt-2">
+                            <% 
+                               const percentage = (player.position / player.track.duration) * 100;
+                            %>
+                            <div class="progress-fill" style="width: <%= percentage %>%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>
+                                <%= Math.floor(player.position / 60000) %>:<%= String(Math.floor((player.position / 1000) % 60)).padStart(2, '0') %>
+                            </span>
+                            <span>
+                                <%= Math.floor(player.track.duration / 60000) %>:<%= String(Math.floor((player.track.duration / 1000) % 60)).padStart(2, '0') %>
+                            </span>
+                        </div>
+                    </div>
+                <% }); %>
+            </div> -->
+
+            <% if (nowPlaying.length> 3) { %>
+                <div class="text-center mt-8">
+                    <a href="/dashboard" class="btn-primary py-2 px-6 rounded-md inline-flex items-center">
+                        View All Playing <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+                <% } %>
+                    </div>
+                    </section>
+                    <% } %>
+
+                        <!-- Commands Preview Section -->
+                        <section class="py-16 bg-black bg-opacity-50">
+                            <div class="container mx-auto px-6">
+                                <div class="flex flex-col md:flex-row justify-between items-center mb-10">
+                                    <h2 class="text-3xl font-bold">
+                                        <span class="text-primary">Command</span> Explorer
+                                    </h2>
+
+                                    <div class="mt-6 md:mt-0 flex items-center space-x-3">
+                                        <button class="filter-btn active px-4 py-2 rounded-md text-sm"
+                                            data-filter="all">All</button>
+                                        <button class="filter-btn px-4 py-2 rounded-md text-sm"
+                                            data-filter="slash">Slash Commands</button>
+                                        <button class="filter-btn px-4 py-2 rounded-md text-sm"
+                                            data-filter="prefix">Prefix Commands</button>
+                                    </div>
+                                </div>
+
+                                <div class="relative">
+                                    <input type="text" id="command-search" placeholder="Search commands..."
+                                        class="w-full bg-gray-900 border border-gray-800 text-white px-4 py-3 rounded-lg mb-8 focus:outline-none focus:border-primary">
+                                    <i class="fas fa-search absolute right-4 top-3 text-gray-500"></i>
+                                </div>
+
+
+                                <!-- Replace the commands container section -->
+
+                                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4" id="commands-container">
+                                    <% if (commands && commands.length> 0) { %>
+                                        <% commands.forEach(function(command) { %>
+                                            <div class="command-card rounded-lg p-4" data-category="<%= command.type %>"
+                                                data-name="<%= command.name.toLowerCase() %>">
+                                                <div class="flex items-center mb-3">
+                                                    <% if (command.type==='slash' ) { %>
+                                                        <span
+                                                            class="text-sm bg-blue-500 bg-opacity-20 text-blue-400 px-2 py-1 rounded-md mr-2">
+                                                            /
+                                                        </span>
+                                                        <% } else { %>
+                                                            <span
+                                                                class="text-sm bg-purple-500 bg-opacity-20 text-purple-400 px-2 py-1 rounded-md mr-2">
+                                                                !
+                                                            </span>
+                                                            <% } %>
+                                                                <h3 class="font-semibold">
+                                                                    <%= command.name %>
+                                                                </h3>
+                                                </div>
+                                                <p class="text-sm text-gray-400 mb-3">
+                                                    <%= command.description %>
+                                                </p>
+                                                <div class="text-xs text-gray-500">
+                                                    <% if (command.usage) { %>
+                                                        <div class="mb-1"><strong>Usage:</strong>
+                                                            <%= command.usage %>
+                                                        </div>
+                                                        <% } %>
+                                                            <% if (command.aliases && command.aliases.length> 0) { %>
+                                                                <div><strong>Aliases:</strong>
+                                                                    <%= command.aliases.join(', ') %></div>
+                    <% } %>
+                </div>
             </div>
-            <h3>Spotify Integration</h3>
-            <p>Play your favorite Spotify tracks and playlists directly in Discord with high-quality audio.</p>
+        <% }); %>
+    <% } else { %>
+        <div class="col-span-3 text-center text-gray-400 py-8">
+            No commands found. They will appear here once registered.
         </div>
-        <div class="feature">
-            <div class="feature-icon">
-                <i class="fas fa-list"></i>
+    <% } %>
+</div>
+            
+            <div class="text-center mt-10">
+                <a href="/commands" class="btn-primary py-2 px-6 rounded-md inline-flex items-center">
+                    View All Commands <i class="fas fa-arrow-right ml-2"></i>
+                </a>
             </div>
-            <h3>Advanced Queue</h3>
-            <p>Manage your music queue with ease. Add, remove, and reorder songs on the fly.</p>
-        </div>
-        <div class="feature">
-            <div class="feature-icon">
-                <i class="fas fa-bolt"></i>
-            </div>
-            <h3>Fast & Reliable</h3>
-            <p>Experience seamless music playback with minimal latency and buffer-free streaming.</p>
         </div>
     </section>
 
-    <!-- Call to Action -->
-    <section class="cta-section animate-fadeInUp delay-5">
-        <h2 class="cta-title">Ready to enhance your server?</h2>
-        <p class="cta-description">Add <%= botName %> to your Discord server and start enjoying general/mod/music/nsfw features today!</p>
-        <div class="button-group">
-            <a href="https://discord.com/oauth2/authorize?client_id=<%= clientId %>&permissions=1118435113046&scope=bot%20applications.commands" class="cta-button" target="_blank">
-                <i class="fas fa-plus"></i>
-                Add to Discord?
-            </a>
-            <a href="https://discord.gg/9emnU25HaY" class="cta-button secondary" target="_blank">
-                <i class="fas fa-headset"></i>
-                Join Dev Server?
-            </a>
+    <!-- Stats Section -->
+    <section class="py-16">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div class="card rounded-xl p-6 text-center">
+                    <div class="text-4xl font-bold text-primary mb-2"><%= stats.servers %></div>
+                    <div class="text-gray-400">Total Servers</div>
+                </div>
+                
+                <div class="card rounded-xl p-6 text-center">
+                    <div class="text-4xl font-bold text-secondary mb-2"><%= stats.users.toLocaleString() %></div>
+                    <div class="text-gray-400">Total Users</div>
+                </div>
+                
+                <div class="card rounded-xl p-6 text-center">
+                    <div class="text-4xl font-bold text-green-500 mb-2"><%= stats.activePlayers %></div>
+                    <div class="text-gray-400">Active Players</div>
+                </div>
+                
+                <div class="card rounded-xl p-6 text-center">
+                    <div class="text-4xl font-bold text-blue-500 mb-2"><%= stats.totalTracks %></div>
+                    <div class="text-gray-400">Queued Tracks</div>
+                </div>
+            </div>
         </div>
     </section>
-</main>
 
-<!-- Footer -->
-<footer class="footer">
-    <div class="footer-content">
-        <div class="footer-brand">
-            <div class="footer-logo">
-                <img src="<%= botAvatar %>" alt="Bot Logo" class="brand-logo">
-                <span class="footer-brand-text"><%= botName %></span>
-            </div>
-            <p class="footer-description">Elevating your Discord music experience with (free) Premium features and high-quality audio.</p>
-            <div class="social-links">
-                <a href="#" class="social-link"><i class="fab fa-discord"></i></a>
-                <a href="#" class="social-link"><i class="fab fa-github"></i></a>
-                <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-            </div>
-        </div>
-        <div class="footer-links">
-            <div class="footer-links-column">
-                <h4 class="footer-links-title">Product</h4>
-                <a href="#" class="footer-link">Features</a>
-                <a href="#" class="footer-link">Commands</a>
-                <a href="#" class="footer-link">Premium</a>
-            </div>
-            <div class="footer-links-column">
-                <h4 class="footer-links-title">Support</h4>
-                <a href="#" class="footer-link">Documentation</a>
-                <a href="#" class="footer-link">FAQ</a>
-                <a href="#" class="footer-link">Contact</a>
-            </div>
-            <div class="footer-links-column">
-                <h4 class="footer-links-title">Legal</h4>
-                <a href="#" class="footer-link">Privacy Policy</a>
-                <a href="#" class="footer-link">Terms of Service</a>
-                <a href="#" class="footer-link">Cookie Policy</a>
-            </div>
-        </div>
-    </div>
-    <div class="copyright">
-        &copy; <%= new Date().getFullYear() %> <%= botName %>. All rights reserved.
-    </div>
-</footer>
+    <!-- Add to Server CTA -->
+    <section class="py-20">
+        <div class="container mx-auto px-6">
+            <div class="bg-gradient-to-r from-primary to-secondary rounded-2xl p-10 text-center">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">Ready to elevate your Discord experience?</h2>
+                <p class="text-xl text-white text-opacity-90 mb-10 max-w-2xl mx-auto">
+                    Join <%= stats.servers %> servers already enjoying <%= botName %>' s premium music experience. </p>
+                                                                        <a href="https://discord.com/api/oauth2/authorize?client_id=<%= clientId %>&permissions=8&scope=bot%20applications.commands"
+                                                                            class="bg-white text-primary hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors inline-flex items-center">
+                                                                            <i class="fab fa-discord mr-2"></i> Add to
+                                                                            Discord
+                                                                        </a>
+                                                                </div>
+                                                </div>
+                        </section>
 
+                        <!-- Footer -->
+                        <footer class="py-8 border-t border-gray-800">
+                            <div class="container mx-auto px-6">
+                                <div class="flex flex-col md:flex-row justify-between items-center">
+                                    <div class="flex items-center mb-4 md:mb-0">
+                                        <img src="<%= botAvatar %>" alt="<%= botName %>"
+                                            class="h-8 w-8 rounded-full mr-2">
+                                        <span class="text-lg font-semibold text-white">
+                                            <%= botName %>
+                                        </span>
+                                    </div>
 
-    <script>
+                                    <div class="flex items-center space-x-4">
+                                        <a href="https://discord.gg/laxenta" target="_blank"
+                                            class="text-gray-400 hover:text-white">
+                                            <i class="fab fa-discord text-xl"></i>
+                                        </a>
+                                        <a href="https://github.com/shelleyloosespatience" target="_blank"
+                                            class="text-gray-400 hover:text-white">
+                                            <i class="fab fa-github text-xl"></i>
+                                        </a>
+                                        <a href="https://twitter.com/rickroll" target="_blank"
+                                            class="text-gray-400 hover:text-white">
+                                            <i class="fab fa-twitter text-xl"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="mt-4 text-center text-gray-500 text-sm">
+                                    &copy; <%= new Date().getFullYear() %>
+                                        <%= botName %>. All rights reserved.
+                                            <div class="mt-1">
+                                                <div class="inline-flex items-center">
+                                                    <span
+                                                        class="inline-block w-2 h-2 rounded-full <%= stats.online ? 'bg-green-500' : 'bg-red-500' %> mr-1"></span>
+                                                    <span>
+                                                        <%= stats.online ? 'Online' : 'Offline' %>
+                                                    </span>
+                                                    <span class="mx-2">|</span>
+                                                    <span>Uptime: <%= Math.floor(stats.uptime / 86400) %>d <%=
+                                                                Math.floor((stats.uptime % 86400) / 3600) %>h <%=
+                                                                    Math.floor((stats.uptime % 3600) / 60) %>m</span>
+                                                </div>
+                                            </div>
+                                </div>
+                            </div>
+                        </footer>
 
-document.addEventListener('DOMContentLoaded', function() {
-        // Handle logout form submission
-        const logoutForm = document.querySelector('.logout-form');
-        if (logoutForm) {
-            logoutForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                fetch('/logout', {
-                    method: 'POST',
-                    credentials: 'same-origin'
-                }).then(() => {
-                    window.location.href = '/';
-                });
-            });
-        }
-        
-        // Handle Spotify disconnect
-        const disconnectBtn = document.querySelector('.disconnect-spotify');
-        if (disconnectBtn) {
-            disconnectBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const url = this.getAttribute('data-action');
-                fetch(url, {
-                    method: 'POST',
-                    credentials: 'same-origin'
-                }).then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.reload();
-                    }
-                });
-            });
-        }
-    });
-    </script>
-</body>
-</html>
+                        <script>
+                            // When the page loads
+                            // When the page loads
+                            document.addEventListener('DOMContentLoaded', function () {
+                                // Filter buttons functionality
+                                const filterButtons = document.querySelectorAll('.filter-btn');
+                                const commandCards = document.querySelectorAll('.command-card');
+                                const searchInput = document.getElementById('command-search');
+
+                                // Active filter tracking
+                                let activeFilter = 'all';
+
+                                // Filter click handler
+                                filterButtons.forEach(btn => {
+                                    btn.addEventListener('click', function () {
+                                        // Update active class
+                                        filterButtons.forEach(b => b.classList.remove('active'));
+                                        this.classList.add('active');
+
+                                        // Get filter value
+                                        activeFilter = this.getAttribute('data-filter');
+
+                                        // Apply filters
+                                        applyFilters();
+                                    });
+                                });
+
+                                // Search functionality
+                                if (searchInput) {
+                                    searchInput.addEventListener('input', function () {
+                                        applyFilters();
+                                    });
+                                }
+
+                                // Apply both search and category filters
+                                // Replace the applyFilters function
+
+                                function applyFilters() {
+                                    if (!searchInput) return;
+
+                                    const searchTerm = searchInput.value.toLowerCase();
+                                    const cards = document.querySelectorAll('.command-card');
+                                    let visibleCount = 0;
+
+                                    cards.forEach(card => {
+                                        const category = card.getAttribute('data-category');
+                                        const commandName = card.getAttribute('data-name');
+                                        const description = card.querySelector('p').textContent.toLowerCase();
+
+                                        // Check if matches category filter
+                                        const passesCategory = activeFilter === 'all' || category === activeFilter;
+
+                                        // Check if matches search term
+                                        const passesSearch = commandName.includes(searchTerm) ||
+                                            description.includes(searchTerm);
+
+                                        // Show/hide based on filters
+                                        if (passesCategory && passesSearch) {
+                                            card.style.display = 'block';
+                                            visibleCount++;
+                                        } else {
+                                            card.style.display = 'none';
+                                        }
+                                    });
+
+                                    // Show no results message if needed
+                                    const noResultsMessage = document.querySelector('.no-results-message');
+                                    if (visibleCount === 0) {
+                                        if (!noResultsMessage) {
+                                            const message = document.createElement('div');
+                                            message.className = 'no-results-message col-span-3 text-center text-gray-400 py-8';
+                                            message.innerHTML = `No commands found matching "${searchTerm}"`;
+                                            document.getElementById('commands-container').appendChild(message);
+                                        }
+                                    } else if (noResultsMessage) {
+                                        noResultsMessage.remove();
+                                    }
+                                }
+
+                                // Add debouncing to search for better performance
+                                let searchTimeout;
+                                searchInput.addEventListener('input', () => {
+                                    clearTimeout(searchTimeout);
+                                    searchTimeout = setTimeout(applyFilters, 300);
+                                });
+                                // Animated progress for "Now Playing" cards
+                                const progressBars = document.querySelectorAll('.progress-bar');
+                                progressBars.forEach(bar => {
+                                    const fill = bar.querySelector('.progress-fill');
+                                    if (fill) {
+                                        const width = fill.style.width;
+                                        // Set initial width to 0 and animate to actual width
+                                        fill.style.width = '0%';
+                                        setTimeout(() => {
+                                            fill.style.transition = 'width 1s ease';
+                                            fill.style.width = width;
+                                        }, 100);
+                                    }
+                                });
+
+                                // Animated orbs in background
+                                const orbs = document.querySelectorAll('.orb');
+                                orbs.forEach(orb => {
+                                    // Set random initial positions
+                                    const x = Math.random() * 100;
+                                    const y = Math.random() * 100;
+                                    orb.style.left = `${x}%`;
+                                    orb.style.top = `${y}%`;
+                                });
+
+                                // Mobile menu toggle functionality
+                                const mobileMenuButton = document.getElementById('mobile-menu-button');
+                                const mobileMenu = document.getElementById('mobile-menu');
+
+                                if (mobileMenuButton && mobileMenu) {
+                                    mobileMenuButton.addEventListener('click', function () {
+                                        mobileMenu.classList.toggle('hidden');
+                                    });
+                                }
+
+                                // Run initial filter
+                                applyFilters();
+                            });
+                        </script>

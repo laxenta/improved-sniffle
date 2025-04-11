@@ -1,284 +1,151 @@
-// spotifyAuth.js
 const SpotifyWebApi = require('spotify-web-api-node');
-const crypto = require('crypto');
 
 class SpotifyAuthManager {
     constructor(config) {
-        this.config = config;
+        this.clientId = config.spotify.clientId;
+        this.clientSecret = config.spotify.clientSecret;
+        this.baseUrl = config.baseUrl;
+        this.redirectUri = `${this.baseUrl}/callback`;
+        
+        // Initialize Spotify API wrapper
         this.spotifyApi = new SpotifyWebApi({
-            clientId: config.spotify.clientId,
-            clientSecret: config.spotify.clientSecret,
-            redirectUri: `${config.baseUrl}/callback`
+            clientId: this.clientId,
+            clientSecret: this.clientSecret,
+            redirectUri: this.redirectUri
         });
     }
 
-    // Get authentication URL with state for security
+    setupRoutes(app, isAuthenticated) {
+        // Routes are set up in the WebServer class
+    }
+
     getAuthURL(state) {
         const scopes = [
             'user-read-private',
             'user-read-email',
             'user-library-read',
             'playlist-read-private',
-            'playlist-read-collaborative'
+            'playlist-read-collaborative',
+            'user-top-read',
+            'user-read-recently-played'
         ];
-        
+
         return this.spotifyApi.createAuthorizeURL(scopes, state);
     }
 
-
-    // Add this method to the SpotifyAuthManager class
-async handleCallback(code) {
-    try {
-        // Get tokens from Spotify
-        const data = await this.spotifyApi.authorizationCodeGrant(code);
-        
-        return {
-            accessToken: data.body.access_token,
-            refreshToken: data.body.refresh_token,
-            expiresIn: data.body.expires_in
-        };
-    } catch (error) {
-        console.error('Spotify token exchange error:', error);
-        throw error;
-    }
-}
-
-// Fix the handleCallbackRequest method
-async handleCallbackRequest(req, res) {
-    try {
-        if (!req.session || !req.isAuthenticated()) {
-            console.error('No session or not authenticated');
-            return res.redirect('/auth/discord');
-        }
-
-        const { code, state } = req.query;
-
-        if (!state || state !== req.session.spotifyState) {
-            console.error('State mismatch:', {
-                queryState: state,
-                sessionState: req.session.spotifyState
-            });
-            return res.redirect('/dashboard?error=invalid_state');
-        }
-
-        // Get tokens using the new handleCallback method
-        const tokens = await this.handleCallback(code);
-        
-        // Get user profile
-        this.spotifyApi.setAccessToken(tokens.accessToken);
-        const profile = await this.getUserProfile(tokens.accessToken);
-
-        // Find current session
-        let session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-        if (!session) {
-            session = {
-                sessionId: req.sessionID,
-                createdAt: new Date()
-            };
-            req.user.sessions.push(session);
-        }
-
-        // Update session with Spotify data
-        session.spotify = {
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
-            expiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
-            profile: profile
-        };
-        session.lastActive = new Date();
-
-        // Clean up old sessions
-        await req.user.cleanupSessions();
-        
-        // Save changes
-        await req.user.save();
-
-        // Clear state from session
-        delete req.session.spotifyState;
-        
-        // Redirect back
-        const returnTo = req.session.returnTo || '/dashboard';
-        delete req.session.returnTo;
-        
-        res.redirect(returnTo);
-
-    } catch (error) {
-        console.error('Spotify callback error:', error);
-        res.redirect('/error?message=' + encodeURIComponent(error.message));
-    }
-}
-
-    // Get user profile once authenticated
-    async getUserProfile(accessToken) {
-        this.spotifyApi.setAccessToken(accessToken);
-        const response = await this.spotifyApi.getMe();
-        
-        return {
-            id: response.body.id,
-            displayName: response.body.display_name,
-            email: response.body.email
-        };
-    }
-
-    // Refresh an expired token
-    async refreshToken(user, session) {
-        if (!session.spotify || !session.spotify.refreshToken) {
-            throw new Error('No refresh token available');
-        }
-        
-        this.spotifyApi.setRefreshToken(session.spotify.refreshToken);
-        const data = await this.spotifyApi.refreshAccessToken();
-        
-        // Update session with new token info
-        session.spotify.accessToken = data.body.access_token;
-        session.spotify.expiresAt = new Date(Date.now() + data.body.expires_in * 1000);
-        
-        // Save user with updated session
-        await user.save();
-        
-        return {
-            accessToken: data.body.access_token,
-            expiresAt: session.spotify.expiresAt
-        };
-    }
-
-    // Create a client for a specific user session
-    createClientForUser(session) {
-        if (!session || !session.spotify) {
-            throw new Error('No Spotify connection in this session');
-        }
-        
-        const spotifyApi = new SpotifyWebApi({
-            clientId: this.config.spotify.clientId,
-            clientSecret: this.config.spotify.clientSecret,
-            redirectUri: `${this.config.baseUrl}/callback`
-        });
-        
-        spotifyApi.setAccessToken(session.spotify.accessToken);
-        return spotifyApi;
-    }
-
-    // Set up Spotify auth routes
-    setupRoutes(app, isAuthenticated) {
-        // Spotify auth route
-        app.get('/auth/spotify', isAuthenticated, (req, res) => {
-            const state = crypto.randomBytes(16).toString('hex');
-            req.session.spotifyState = state;
-            req.session.returnTo = req.query.returnTo || '/dashboard';
+    async handleCallback(code) {
+        try {
+            const data = await this.spotifyApi.authorizationCodeGrant(code);
             
-            const authUrl = this.getAuthURL(state);
-            res.redirect(authUrl);
-        });
-
-        // Spotify callback route
-        // Spotify callback route
-        app.get('/callback', this.handleCallbackRequest.bind(this));
-        // Token refresh endpoint
-        app.post('/api/spotify/refresh', isAuthenticated, async (req, res) => {
-            try {
-                const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-                if (!session || !session.spotify) {
-                    return res.status(401).json({ error: 'No Spotify connection' });
-                }
-
-                const result = await this.refreshToken(req.user, session);
-                
-                res.json({
-                    success: true,
-                    expiresAt: result.expiresAt
-                });
-            } catch (error) {
-                console.error('Token refresh error:', error);
-                res.status(500).json({ error: 'Failed to refresh token' });
-            }
-        });
-
-        // Disconnect endpoint
-        app.post('/api/spotify/disconnect', isAuthenticated, async (req, res) => {
-            try {
-                const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-                if (session) {
-                    session.spotify = null;
-                    await req.user.save();
-                }
-                res.json({ success: true });
-            } catch (error) {
-                res.status(500).json({ error: 'Failed to disconnect Spotify' });
-            }
-        });
-
-        return app;
-    }
-
-    // Update user session with Spotify data
-    async updateUserSession(user, sessionId, tokens, spotifyProfile) {
-        // Find the user session
-        let session = user.sessions.find(s => s.sessionId === sessionId);
-        
-        // Create session if it doesn't exist
-        if (!session) {
-            session = {
-                sessionId,
-                createdAt: new Date(),
-                lastActive: new Date()
+            return {
+                accessToken: data.body.access_token,
+                refreshToken: data.body.refresh_token,
+                expiresIn: data.body.expires_in
             };
-            user.sessions.push(session);
+        } catch (error) {
+            console.error('Spotify auth callback error:', error);
+            throw error;
         }
-        
-        // Update session with Spotify data
-        session.spotify = {
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
-            expiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
-            profile: spotifyProfile
-        };
-        
-        session.lastActive = new Date();
-        
-        // Save user
-        await user.save();
-        return session;
     }
 
-    // Middleware to ensure user has Spotify connected
-    ensureSpotifyConnected(req, res, next) {
-        if (!req.user) {
-            return res.redirect('/auth/discord');
+    async getUserProfile(accessToken) {
+        try {
+            this.spotifyApi.setAccessToken(accessToken);
+            const response = await this.spotifyApi.getMe();
+            return response.body;
+        } catch (error) {
+            console.error('Error getting Spotify user profile:', error);
+            throw error;
         }
-
-        const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-        
-        if (session && session.spotify) {
-            return next();
-        }
-        
-        // Store return URL and redirect to Spotify auth
-        req.session.returnTo = req.originalUrl;
-        res.redirect('/auth/spotify');
     }
 
-    // Middleware to ensure fresh token
-    async ensureFreshToken(req, res, next) {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Not authenticated' });
+    async refreshToken(user, sessionData) {
+        if (!sessionData.spotify || !sessionData.spotify.refreshToken) {
+            throw new Error('No refresh token available');
         }
 
         try {
+            // Create a new instance with just the necessary credentials
+            const spotifyApi = new SpotifyWebApi({
+                clientId: this.clientId,
+                clientSecret: this.clientSecret,
+                refreshToken: sessionData.spotify.refreshToken
+            });
+
+            const data = await spotifyApi.refreshAccessToken();
+            
+            // Update the session with new tokens
+            sessionData.spotify.accessToken = data.body.access_token;
+            
+            // If a new refresh token was provided (rare but possible)
+            if (data.body.refresh_token) {
+                sessionData.spotify.refreshToken = data.body.refresh_token;
+            }
+            
+            // Update expiration time
+            const expiresIn = data.body.expires_in || 3600; // default to 1 hour if not specified
+            sessionData.spotify.expiresAt = new Date(Date.now() + expiresIn * 1000);
+            
+            // Save user with updated session
+            await user.save();
+            
+            return data.body.access_token;
+        } catch (error) {
+            console.error('Token refresh error:', error);
+            
+            // If refresh fails, mark the session as needing reconnection
+            sessionData.spotify.needsReconnect = true;
+            await user.save();
+            
+            throw error;
+        }
+    }
+
+    async ensureFreshToken(req, res, next) {
+        try {
+            if (!req.isAuthenticated() || !req.user) {
+                return res.status(401).json({ error: 'Not authenticated' });
+            }
+
             const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+            
+            // Check if Spotify is connected
             if (!session || !session.spotify) {
                 return res.status(401).json({ error: 'Spotify not connected' });
             }
 
-            // Refresh if token expires in < 10 minutes
-            const expiresAt = new Date(session.spotify.expiresAt);
-            if (expiresAt < new Date(Date.now() + 10 * 60 * 1000)) {
-                await this.refreshToken(req.user, session);
+            // Check if token is expired or about to expire (within 5 minutes)
+            const tokenExpiresAt = new Date(session.spotify.expiresAt);
+            const isExpired = tokenExpiresAt <= new Date(Date.now() + 5 * 60 * 1000);
+            
+            if (isExpired) {
+                try {
+                    await this.refreshToken(req.user, session);
+                } catch (refreshError) {
+                    console.error('Token refresh failed:', refreshError);
+                    return res.status(401).json({ error: 'Failed to refresh token', needsReconnect: true });
+                }
             }
-
+            
             next();
         } catch (error) {
-            res.status(401).json({ error: 'Failed to refresh token' });
+            console.error('Error in ensureFreshToken middleware:', error);
+            res.status(500).json({ error: 'Internal server error' });
         }
+    }
+
+    createClientForUser(session) {
+        if (!session || !session.spotify || !session.spotify.accessToken) {
+            throw new Error('No valid Spotify session');
+        }
+
+        const api = new SpotifyWebApi({
+            clientId: this.clientId,
+            clientSecret: this.clientSecret
+        });
+
+        api.setAccessToken(session.spotify.accessToken);
+        return api;
     }
 }
 

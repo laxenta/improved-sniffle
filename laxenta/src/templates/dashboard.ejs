@@ -176,7 +176,7 @@
 
    <script>
     // Session and token management
-async function checkSession() {
+    async function checkSession() {
     try {
         const response = await fetch('/api/auth/verify');
         const data = await response.json();
@@ -187,9 +187,9 @@ async function checkSession() {
         }
 
         if (!data.user.authStatus.spotify) {
-            if (window.location.pathname !== '/') {
-                window.location.href = '/auth/spotify?returnTo=' + encodeURIComponent(window.location.pathname);
-            }
+            // Save current path before redirect
+            sessionStorage.setItem('returnPath', window.location.pathname);
+            window.location.href = '/auth/spotify';
             return false;
         }
         
@@ -203,27 +203,49 @@ async function checkSession() {
     }
 }
 
+function handleAuthReturn() {
+    const returnPath = sessionStorage.getItem('returnPath');
+    if (returnPath) {
+        sessionStorage.removeItem('returnPath');
+        if (returnPath !== window.location.pathname) {
+            window.location.href = returnPath;
+        }
+    }
+}
+// Replace the refreshSpotifyToken function with:
+
 async function refreshSpotifyToken() {
     try {
         showToast('Refreshing Spotify token...');
         const response = await fetch('/api/spotify/refresh', { 
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            credentials: 'same-origin'
         });
         
         if (!response.ok) {
+            if (response.status === 401) {
+                // Clear session storage and redirect to Spotify auth
+                sessionStorage.setItem('returnPath', window.location.pathname);
+                window.location.href = '/auth/spotify';
+                throw new Error('Token refresh failed - redirecting to auth');
+            }
             throw new Error('Token refresh failed with status: ' + response.status);
         }
         
         const result = await response.json();
+        if (!result.success) {
+            throw new Error('Token refresh failed');
+        }
+        
         showToast('Token refreshed successfully!');
         return result;
     } catch (error) {
         console.error('Token refresh failed:', error);
-        showToast('Failed to refresh token. Redirecting...', 'error');
-        setTimeout(() => {
-            window.location.href = '/auth/spotify?returnTo=' + encodeURIComponent(window.location.pathname);
-        }, 2000);
+        showToast('Failed to refresh token', 'error');
         throw error;
     }
 }
@@ -732,7 +754,10 @@ function updateBotStatus(online) {
 
 // Tab switching
 document.addEventListener('DOMContentLoaded', function() {
-    // Initial load of data
+    // Handle return from auth first
+    handleAuthReturn();
+    
+    // Then check session and load data
     checkSession().then(valid => {
         if (valid) {
             loadPlaylists();

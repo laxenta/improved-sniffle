@@ -8,6 +8,7 @@ const SpotifyAuthManager = require('../auth/spotifyAuth');
 const DiscordAuthManager = require('../auth/discordAuth');
 const MongoStore = require('connect-mongo');
 const User = require('../models/User');
+const cookieParser = require('cookie-parser');
 
 class WebServer {
     constructor(client) {
@@ -44,10 +45,16 @@ class WebServer {
         setInterval(async () => {
             try {
                 const users = await User.find({});
+                let totalCleaned = 0;
                 for (const user of users) {
+                    const beforeCount = user.sessions.length;
                     await user.cleanupSessions();
+                    totalCleaned += beforeCount - user.sessions.length;
                 }
-                console.log('Hourly session cleanup completed');
+                console.log('Session cleanup completed:', {
+                    usersProcessed: users.length,
+                    sessionsRemoved: totalCleaned
+                });
             } catch (error) {
                 console.error('Session cleanup error:', error);
             }
@@ -56,16 +63,28 @@ class WebServer {
 
 
     setupMiddleware() {
+        // Add cookie parser before session middleware
+        this.app.use(cookieParser());
+
         // 1. Basic middleware first
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
     
-        // 2. Session setup with MemoryStore (for development)
+        // 2. Session setup with FileStore for persistence
         this.app.use(session({
+            store: new FileStore({
+                path: './sessions',
+                ttl: 86400, // 24 hours
+                retries: 0,
+                secret: process.env.SESSION_SECRET,
+                reapInterval: 3600, // Cleanup every hour
+                compress: true,
+                encoding: 'utf8',
+                fileExtension: '.sess'
+            }),
             secret: process.env.SESSION_SECRET,
             resave: false,
             saveUninitialized: false,
-            store: new session.MemoryStore(), // Simple in-memory storage
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 maxAge: 24 * 60 * 60 * 1000, // 1 day
@@ -73,7 +92,7 @@ class WebServer {
                 sameSite: 'lax'
             },
             name: 'sid'
-        }));
+        })); 
     
         // Debug middleware
         if (process.env.NODE_ENV !== 'production') {
@@ -86,6 +105,38 @@ class WebServer {
                 next();
             });
         }
+
+        // Session recovery middleware
+        this.app.use(async (req, res, next) => {
+            if (!req.user && req.cookies.uid) {
+                console.log('Attempting session recovery:', {
+                    sessionId: req.sessionID,
+                    userId: req.cookies.uid
+                });
+                
+                try {
+                    const user = await User.findOne({ discordId: req.cookies.uid });
+                    if (user) {
+                        // Create new session
+                        user.findOrCreateSession(req.sessionID, req.ip);
+                        await user.save();
+                        
+                        req.login(user, (err) => {
+                            if (err) {
+                                console.error('Session recovery failed:', err);
+                                res.clearCookie('uid');
+                            }
+                            next();
+                        });
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Session recovery error:', err);
+                    res.clearCookie('uid');
+                }
+            }
+            next();
+        });
     }
     // Set up template routes
     // This method generates routes for each EJS template in the templates directory    
@@ -142,7 +193,14 @@ class WebServer {
         this.app.get('/auth/discord/callback',
             passport.authenticate('discord', { failureRedirect: '/error' }),
             (req, res) => {
-                // Redirect to saved return path or dashboard
+                // Set persistent cookie
+                res.cookie('uid', req.user.discordId, {
+                    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax'
+                });
+
                 const returnTo = req.session.returnTo || '/dashboard';
                 delete req.session.returnTo;
                 res.redirect(returnTo);
@@ -344,6 +402,14 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
     try {
         let user = await User.findOne({ discordId: profile.id });
 
+            // Set a persistent cookie with user ID
+            res.cookie('uid', profile.id, {
+                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax'
+            });
+    
         if (!user) {
             user = new User({
                 discordId: profile.id,

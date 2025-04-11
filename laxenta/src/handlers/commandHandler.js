@@ -139,8 +139,9 @@ async function loadAllCommands(client) {
 
         console.info(green('All commands loaded successfully.'));
     } catch (error) {
-        console.error(red(`Error loading commands: ${error.message}`));
-    }
+        console.error(red(`Error loading commands:`));
+        console.error(error); // log full stack trace
+            }
 }
 
 async function registerSlashCommands(slashCommands, clientId, guildId) {

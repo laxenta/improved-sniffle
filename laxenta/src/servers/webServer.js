@@ -180,88 +180,101 @@ if (process.env.NODE_ENV !== 'production') {
             });
         });
 
-        // Spotify callback - completely refactored for reliability
-      // Replace the existing /callback route with:
-      this.app.get('/callback', async (req, res) => {
-        const { code, state } = req.query;
-        
-        console.log('Callback received:', {
-            hasState: !!state,
-            sessionState: req.session?.spotifyState,
-            sessionID: req.sessionID
-        });
+     // Replace the existing /callback route with this implementation
+this.app.get('/callback', async (req, res) => {
+    const { code, state } = req.query;
     
-        try {
-            // Basic validation
-            if (!req.session) {
-                throw new Error('No session found');
-            }
-    
-            if (!req.isAuthenticated()) {
-                return res.redirect('/auth/discord');
-            }
-    
-            // State validation with detailed logging
-            if (!state || !req.session.spotifyState) {
-                console.error('Missing state:', {
-                    queryState: state,
-                    sessionState: req.session.spotifyState
-                });
-                return res.redirect('/dashboard?error=invalid_state');
-            }
-    
-            if (state !== req.session.spotifyState) {
-                console.error('State mismatch:', {
-                    queryState: state,
-                    sessionState: req.session.spotifyState
-                });
-                return res.redirect('/dashboard?error=state_mismatch');
-            }
-    
-            // Get tokens
-            const tokens = await this.spotifyAuthHandler.handleCallback(code);
-            
-            // Get user profile
-            this.spotifyAuthHandler.spotifyApi.setAccessToken(tokens.accessToken);
-            const profile = await this.spotifyAuthHandler.getUserProfile(tokens.accessToken);
-    
-            // Update session
-            const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-            if (!session) {
-                throw new Error('No valid session found');
-            }
-    
-            // Update session with Spotify data
-            session.spotify = {
-                accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken,
-                expiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
-                profile: profile
-            };
-    
-            // Save changes
-            await req.user.save();
-    
-            // Clear state and redirect
-            delete req.session.spotifyState;
-            
-            const returnTo = req.session.returnTo || '/dashboard';
-            delete req.session.returnTo;
-            
-            // Force session save before redirect
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Session save error:', err);
-                    return res.redirect('/error?message=session_error');
-                }
-                res.redirect(returnTo);
-            });
-    
-        } catch (error) {
-            console.error('Spotify callback error:', error);
-            res.redirect('/error?message=' + encodeURIComponent(error.message));
-        }
+    console.log('Callback received:', {
+        hasState: !!state,
+        sessionState: req.session?.spotifyState,
+        sessionID: req.sessionID
     });
+
+    try {
+        // Basic validation
+        if (!req.session) {
+            throw new Error('No session found');
+        }
+
+        if (!req.isAuthenticated()) {
+            return res.redirect('/auth/discord');
+        }
+
+        // State validation with detailed logging
+        if (!state || !req.session.spotifyState) {
+            console.error('Missing state:', {
+                queryState: state,
+                sessionState: req.session.spotifyState
+            });
+            return res.redirect('/dashboard?error=invalid_state');
+        }
+
+        if (state !== req.session.spotifyState) {
+            console.error('State mismatch:', {
+                queryState: state,
+                sessionState: req.session.spotifyState
+            });
+            return res.redirect('/dashboard?error=state_mismatch');
+        }
+
+        // Get tokens
+        const tokens = await this.spotifyAuthHandler.handleCallback(code);
+        
+        // Get user profile
+        this.spotifyAuthHandler.spotifyApi.setAccessToken(tokens.accessToken);
+        const profile = await this.spotifyAuthHandler.getUserProfile(tokens.accessToken);
+
+        // Find session in user's sessions array or create it if it doesn't exist
+        let session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+        
+        if (!session) {
+            // Create a new session entry if one doesn't exist
+            session = {
+                sessionId: req.sessionID,
+                ip: req.ip || req.header('X-Client-IP') || 'unknown',
+                isActive: true,
+                createdAt: new Date(),
+                lastActive: new Date()
+            };
+            req.user.sessions.push(session);
+            console.log('Created new session for user:', {
+                sessionId: req.sessionID,
+                username: req.user.username,
+                totalSessions: req.user.sessions.length
+            });
+        }
+
+        // Update session with Spotify data
+        session.spotify = {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
+            profile: profile
+        };
+
+        // Save changes
+        await req.user.save();
+
+        // Clear state and redirect
+        delete req.session.spotifyState;
+        
+        const returnTo = req.session.returnTo || '/dashboard';
+        delete req.session.returnTo;
+        
+        // Force session save before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.redirect('/error?message=session_error');
+            }
+            res.redirect(returnTo);
+        });
+
+    } catch (error) {
+        console.error('Spotify callback error:', error);
+        res.redirect('/error?message=' + encodeURIComponent(error.message));
+    }
+});
 
         // Logout route
         this.app.post('/logout', (req, res, next) => {

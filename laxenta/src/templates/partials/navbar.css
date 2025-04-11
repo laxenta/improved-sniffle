@@ -1,0 +1,110 @@
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #111;
+    color: #eee;
+  }
+  
+  .navbar {
+    display: flex;
+    flex-direction: column;
+    background: #222;
+    padding: 10px;
+    position: relative;
+  }
+  
+  .navbar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #fff;
+  }
+  
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+    margin-right: 10px;
+    border-radius: 50%;
+  }
+  
+  .navbar-links {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  
+  .navbar-links a,
+  .user-profile {
+    color: #ccc;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+  }
+  
+  .user-profile {
+    margin-top: 10px;
+  }
+  
+  .profile-avatar-container img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+  }
+  
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+  }
+  
+  .sidebar {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 250px;
+    height: 100%;
+    background: #1e1e1e;
+    padding: 20px;
+    transition: right 0.3s ease;
+    z-index: 1000;
+  }
+  
+  .sidebar.active {
+    right: 0;
+  }
+  
+  .sidebar a {
+    color: #ccc;
+    text-decoration: none;
+    padding: 10px 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .content {
+    padding: 20px;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .navbar-links {
+      display: none;
+    }
+  
+    .menu-toggle {
+      display: block;
+    }
+  }  

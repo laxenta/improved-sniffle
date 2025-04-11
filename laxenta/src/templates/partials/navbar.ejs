@@ -4,141 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard</title>
-  <!-- Font Awesome for icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-dYfI+jvFsvWyrT6uoPO6LS6E4/e6w0Lr6Al2Cq6O5v9EirFqWgwIj0u/9nN9fK6UI+q3pLMcf+YVX8a7N1ea0A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <style>
-    :root {
-      --spotify-green: #1DB954;
-      --spotify-dark: #1aa34a;
-      --discord-blue: #5865F2;
-      --discord-purple: #7289DA;
-      --dark-bg: #23272A;
-      --darker-bg: #1a1d20;
-      --text-primary: #ffffff;
-      --text-secondary: #b9bbbe;
-    }
-    
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--dark-bg);
-      color: var(--text-primary);
-      min-height: 100vh;
-      margin: 0;
-    }
-    
-    .navbar {
-      background: rgba(26, 29, 32, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 1rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: fixed;
-      width: 100%;
-      top: 0;
-      z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    }
-    
-    .navbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    
-    .brand-logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid var(--spotify-green);
-      object-fit: cover;
-    }
-    
-    .brand-name {
-      font-size: 1.5rem;
-      font-weight: 700;
-      background: linear-gradient(45deg, var(--spotify-green), var(--discord-blue));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .navbar-links {
-      display: flex;
-      gap: 1.5rem;
-    }
-    
-    .navbar-links a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .navbar-links a:hover {
-      color: var(--text-primary);
-    }
-    
-    .user-profile {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 0.5rem 1rem;
-      border-radius: 50px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-      text-decoration: none;
-    }
-    
-    .user-profile:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-    
-    /* Profile image container ensures proper sizing & round shape */
-    .profile-avatar-container {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      overflow: hidden;
-      border: 2px solid var(--discord-purple);
-    }
-    
-    .profile-avatar-container img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .discord-tag {
-      font-weight: 500;
-      font-size: 0.9rem;
-      color: var(--text-primary);
-    }
-    
-    /* Ensure page content is not hidden behind the fixed navbar */
-    .content {
-      padding-top: 80px;
-    }
-  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/navbar.css">
 </head>
 <body>
   <nav class="navbar">
-    <!-- Wrap navbar-brand in an anchor to redirect to "/" -->
-    <a href="/" class="navbar-brand">
-      <img src="<%= avatar %>" alt="Bot Logo" class="brand-logo">
-      <span class="brand-name"><%= botName %></span>
-    </a>
+    <div class="navbar-top">
+      <a href="/" class="navbar-brand">
+        <img src="<%= avatar %>" alt="Bot Logo" class="brand-logo">
+        <span class="brand-name"><%= botName %></span>
+      </a>
+      <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+
     <div class="navbar-links">
       <a href="/commands"><i class="fas fa-terminal"></i> Commands</a>
       <a href="/support"><i class="fas fa-headset"></i> Support</a>
@@ -146,8 +26,8 @@
         <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
       <% } %>
     </div>
+
     <% if (user) { %>
-      <!-- Wrap user-profile in an anchor to redirect to "/" -->
       <a href="/" class="user-profile">
         <div class="profile-avatar-container">
           <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>" alt="User Avatar">
@@ -161,10 +41,36 @@
       </a>
     <% } %>
   </nav>
-  
+
+  <div class="sidebar" id="sidebar">
+    <a href="/commands"><i class="fas fa-terminal"></i> Commands</a>
+    <a href="/support"><i class="fas fa-headset"></i> Support</a>
+    <% if (user) { %>
+      <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <% } %>
+    <% if (user) { %>
+      <a href="/" class="user-profile">
+        <div class="profile-avatar-container">
+          <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>" alt="User Avatar">
+        </div>
+        <span class="discord-tag"><%= user.username %></span>
+      </a>
+    <% } else { %>
+      <a href="/auth/discord" class="user-profile">
+        <i class="fab fa-discord"></i>
+        <span class="discord-tag">Login with Discord</span>
+      </a>
+    <% } %>
+  </div>
+
   <div class="content">
-    <!-- Your page content goes here -->
     <h1>Welcome to the Dashboard</h1>
   </div>
+
+  <script>
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('active');
+    }
+  </script>
 </body>
 </html>

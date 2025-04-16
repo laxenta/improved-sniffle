@@ -63,13 +63,11 @@ class WebServer {
 
 
     setupMiddleware() {
-        // Add cookie parser before session middleware
-        this.app.use(cookieParser());
-
-        // 1. Basic middleware first
+        // 1. Basic middleware
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-    
+        this.app.use(cookieParser());
+
         // 2. Session setup with FileStore for persistence
         this.app.use(session({
             store: new FileStore({
@@ -93,20 +91,12 @@ class WebServer {
             },
             name: 'sid'
         })); 
-    
-        // Debug middleware
-        if (process.env.NODE_ENV !== 'production') {
-            this.app.use((req, res, next) => {
-                console.log('Session Debug:', {
-                    id: req.sessionID,
-                    isAuth: req.isAuthenticated?.(),
-                    user: req.user?.username
-                });
-                next();
-            });
-        }
 
-        // Session recovery middleware
+        // 3. Initialize Passport BEFORE the recovery middleware
+        this.app.use(passport.initialize());
+        this.app.use(passport.session());
+
+        // 4. Now the recovery middleware will have access to req.login
         this.app.use(async (req, res, next) => {
             if (!req.user && req.cookies.uid) {
                 console.log('Attempting session recovery:', {
@@ -137,6 +127,18 @@ class WebServer {
             }
             next();
         });
+
+        // Debug middleware
+        if (process.env.NODE_ENV !== 'production') {
+            this.app.use((req, res, next) => {
+                console.log('Session Debug:', {
+                    id: req.sessionID,
+                    isAuth: req.isAuthenticated?.(),
+                    user: req.user?.username
+                });
+                next();
+            });
+        }
     }
     // Set up template routes
     // This method generates routes for each EJS template in the templates directory    
@@ -269,23 +271,33 @@ this.app.get('/callback', this.isAuthenticated.bind(this), async (req, res) => {
 
 
         // Logout route
-        this.app.post('/logout', (req, res, next) => {
-            if (req.user && req.sessionID) {
-                // Mark this session as inactive
-                const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-                if (session) {
-                    session.isActive = false;
-                    req.user.save().catch(err => console.error('Error saving user on logout:', err));
+        this.app.post('/logout', async (req, res, next) => {
+            try {
+                if (req.user && req.sessionID) {
+                    // Find and clear Spotify data from session
+                    const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+                    if (session) {
+                        session.isActive = false;
+                        session.spotify = null; // Clear Spotify data
+                        await req.user.save();
+                    }
                 }
-            }
-            
-            req.logout(function (err) {
-                if (err) { return next(err); }
-                req.session.destroy(() => {
-                    res.clearCookie('connect.sid');
-                    res.redirect('/');
+                
+                // Clear all cookies
+                res.clearCookie('sid');
+                res.clearCookie('uid');
+                
+                // Proper passport logout
+                req.logout((err) => {
+                    if (err) { return next(err); }
+                    req.session.destroy(() => {
+                        res.redirect('/');
+                    });
                 });
-            });
+            } catch (error) {
+                console.error('Logout error:', error);
+                next(error);
+            }
         });
 
         // API auth verification endpoint

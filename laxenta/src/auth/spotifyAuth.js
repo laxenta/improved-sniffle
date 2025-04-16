@@ -76,17 +76,9 @@ class SpotifyAuthManager {
                 user.sessions.push(session);
             }
     
-            // Update session's Spotify data
+            // Only store in session, not in user document
             session.spotify = spotifyData;
             
-            // Also update user's main Spotify auth
-            user.spotifyAuth = {
-                accessToken: data.body.access_token,
-                refreshToken: data.body.refresh_token,
-                expiresAt: new Date(Date.now() + (data.body.expires_in * 1000)),
-                profile: profile
-            };
-    
             await user.save();
             
             console.log('Spotify auth successful:', {

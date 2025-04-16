@@ -57,21 +57,43 @@ userSchema.methods.findOrCreateSession = function(sessionId, ip) {
     
     return session;
 };
-
-userSchema.methods.cleanupSessions = function() {
+// cleaning up the sessionssss
+userSchema.methods.cleanupSessions = async function() {
     if (!this.sessions) return;
     
-    // Keep only active sessions from last 24 hours or the 5 most recent
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    this.sessions = this.sessions
-        .filter(s => s.isActive && (s.lastActive > oneDayAgo))
-        .sort((a, b) => b.lastActive - a.lastActive)
-        .slice(0, 5);
+    const now = new Date();
+    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+    
+    // Count active sessions first
+    const activeSessions = this.sessions.filter(s => 
+        s.isActive && s.lastActive > oneDayAgo
+    );
+    
+    if (activeSessions.length > 3) {
+        // Keep only the 3 most recent active sessions
+        const sortedSessions = activeSessions
+            .sort((a, b) => b.lastActive - a.lastActive)
+            .slice(0, 3);
+            
+        // Add their IDs to a Set for quick lookup
+        const keepSessionIds = new Set(sortedSessions.map(s => s.sessionId));
+        
+        // Filter the main sessions array
+        this.sessions = this.sessions.filter(s => 
+            keepSessionIds.has(s.sessionId) || 
+            (s.isActive && s.lastActive > oneDayAgo)
+        );
+        
+        console.log('Session cleanup:', {
+            before: activeSessions.length,
+            after: this.sessions.length,
+            userId: this._id
+        });
+    }
     
     return this.save();
 };
 
-// Existing methods
 userSchema.methods.touch = function() {
     this.lastActive = new Date();
     return this.save();

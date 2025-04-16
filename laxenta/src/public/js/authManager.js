@@ -264,22 +264,31 @@ class AuthManager {
 
     async logout() {
         try {
-            if (this.spotifyConnected) {
-                await fetch('/api/spotify/disconnect', {
-                    method: 'POST',
-                    credentials: 'same-origin'
-                });
-            }
-
-            await fetch('/logout', {
+            // Call server logout endpoint
+            const response = await fetch('/logout', {
                 method: 'POST',
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
 
-            this.clearAllAuth();
-            window.location.href = '/';
+            const data = await response.json();
+
+            if (data.success) {
+                // Clear all client-side state
+                this.clearAllAuth();
+                
+                // Redirect to home page or wherever server specified
+                window.location.href = data.redirect;
+            } else {
+                console.error('Logout failed:', data.error);
+                // Optionally show error to user
+                alert('Logout failed. Please try again.');
+            }
         } catch (error) {
-            console.error('Logout failed:', error);
+            console.error('Logout error:', error);
+            // Attempt client-side cleanup anyway
             this.clearAllAuth();
             window.location.href = '/';
         }
@@ -327,3 +336,27 @@ if (window.location.pathname.startsWith('/dashboard')) {
 // │   │   └── authManager.js     # Client-side auth management
 // │   └── servers/
 // │       └── webServer.js       # Main Express server
+
+
+// <!-- user authmanager In your frontend -->
+// <script>
+//     // AuthManager is global
+//     const auth = window.authManager;
+    
+//     // Log out button
+//     logoutButton.onclick = () => auth.logout();
+    
+//     // Check auth status
+//     auth.checkAuth().then(isValid => {
+//         if (isValid) {
+//             // User is logged in
+//         }
+//     });
+// </script>
+
+
+// trigger on any page with 
+// await window.authManager.logout();
+
+// and to form a button - 
+// <button onclick="window.authManager.logout()">Logout</button>

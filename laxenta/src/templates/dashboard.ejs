@@ -8,7 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hover.css/2.3.1/css/hover-min.css">
-    <!-- i put styles later -->
+    <script src="/js/authManager.js"></script>
+
 
 </head>
 <body>
@@ -21,17 +22,20 @@
             <% if (user) { %>
                 <div class="user-info">
                     <img src="<%= user.avatarURL %>" alt="<%= user.username %>">         
-                               <span><%= user.username %></span>
+                    <span><%= user.username %></span>
                     <% if (hasSpotify) { %>
                         <span class="spotify-connected">
-                            <i class="fab fa-spotify"></i> Connected
+                            <i class="fab fa-spotify"></i> Connected :3
                         </span>
                     <% } %>
-                    <form action="/logout" method="POST" style="display: inline;">
-                        <button type="submit" class="logout-btn">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
-                    </form>
+                    <!-- Replace form with button -->
+                    <button 
+                        onclick="window.authManager.logout()" 
+                        class="logout-btn"
+                        type="button"
+                    >
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
                 </div>
             <% } %>
         </nav>
@@ -630,6 +634,14 @@ footer {
     color: #a0a0a0;
 }
 
+.logout-btn.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.logout-btn.loading i {
+    animation: fa-spin 2s infinite linear;
+}
+
 </style>
 
 
@@ -1195,5 +1207,66 @@ footer {
 
     // Initialize dashboard when DOM is loaded
     document.addEventListener('DOMContentLoaded', initDashboard);
+
+    // Enhance the logout button with loading state
+    document.querySelector('.logout-btn').addEventListener('click', async (e) => {
+        const button = e.currentTarget;
+        
+        // Prevent double-clicks
+        if (button.classList.contains('loading')) return;
+        
+        // Add loading state
+        button.classList.add('loading');
+        
+        try {
+            await window.authManager.logout();
+        } catch (error) {
+            console.error('Logout failed:', error);
+            // Remove loading state if error
+            button.classList.remove('loading');
+            // Show error toast
+            window.showToast('Logout failed. Please try again.', 'error');
+        }
+    });
+
+    document.querySelector('.logout-btn').addEventListener('click', async function(e) {
+        e.preventDefault();
+        const button = this;
+        
+        // Prevent double clicks
+        if (button.classList.contains('loading')) return;
+        
+        try {
+            button.classList.add('loading');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging out...';
+            
+            const response = await fetch('/logout', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Clear client-side storage
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                // Redirect to home
+                window.location.href = data.redirect;
+            } else {
+                throw new Error(data.error || 'Logout failed');
+            }
+        } catch (error) {
+            console.error('Logout failed:', error);
+            button.classList.remove('loading');
+            button.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
+            // Show error toast
+            window.showToast('Logout failed. Please try again.', 'error');
+        }
+    });
 </script>
 

@@ -55,6 +55,12 @@ class DiscordAuthManager {
             user.email = profile.email;
             user.avatar = profile.avatar;
             user.lastActive = new Date();
+
+               // Force cleanup if too many sessions
+        if (user.sessions?.length > 3) {
+            await user.cleanupSessions();
+        }
+
             
             await user.save();
             done(null, user);

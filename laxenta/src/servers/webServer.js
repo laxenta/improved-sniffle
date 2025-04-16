@@ -58,7 +58,7 @@ class WebServer {
             } catch (error) {
                 console.error('Session cleanup error:', error);
             }
-        }, 60 * 60 * 1000); // Run every hour
+        }, 15 * 60 * 1000); // Run every 15 mns
     }
 
 
@@ -68,17 +68,20 @@ class WebServer {
         this.app.use(express.urlencoded({ extended: true }));
         this.app.use(cookieParser());
 
-        // 2. Session setup with FileStore for persistence
-        this.app.use(session({
-            store: new FileStore({
-                path: './sessions',
-                ttl: 86400, // 24 hours
-                retries: 0,
-                secret: process.env.SESSION_SECRET,
-                reapInterval: 3600, // Cleanup every hour
-                compress: true,
-                encoding: 'utf8',
-                fileExtension: '.sess'
+        const fs = require('fs');
+        const sessionDir = './sessions';
+        if (!fs.existsSync(sessionDir)){
+            fs.mkdirSync(sessionDir, { recursive: true });
+        }
+    
+        // 2. Session setup with proper store initialization
+        const sessionConfig = {
+            store: MongoStore.create({
+                mongoUrl: process.env.MONGODB_URI,
+                ttl: 24 * 60 * 60, // 1 day
+                autoRemove: 'interval',
+                autoRemoveInterval: 15, // minutes
+                touchAfter: 24 * 3600 // 24 hours
             }),
             secret: process.env.SESSION_SECRET,
             resave: false,
@@ -90,9 +93,11 @@ class WebServer {
                 sameSite: 'lax'
             },
             name: 'sid'
-        })); 
+        };
 
-        // 3. Initialize Passport BEFORE the recovery middleware
+        this.app.use(session(sessionConfig)); 
+
+        // 3. Initialize Passport AFTER the session
         this.app.use(passport.initialize());
         this.app.use(passport.session());
 
@@ -194,18 +199,31 @@ class WebServer {
 
         this.app.get('/auth/discord/callback',
             passport.authenticate('discord', { failureRedirect: '/error' }),
-            (req, res) => {
-                // Set persistent cookie
-                res.cookie('uid', req.user.discordId, {
-                    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'lax'
-                });
-
-                const returnTo = req.session.returnTo || '/dashboard';
-                delete req.session.returnTo;
-                res.redirect(returnTo);
+            async (req, res) => {
+                try {
+                    if (!req.user) {
+                        throw new Error('Authentication failed');
+                    }
+        
+                    // Create/update session
+                    const session = req.user.findOrCreateSession(req.sessionID, req.ip);
+                    await req.user.save();
+        
+                    // Set persistent cookie
+                    res.cookie('uid', req.user.discordId, {
+                        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'lax'
+                    });
+        
+                    const returnTo = req.session.returnTo || '/dashboard';
+                    delete req.session.returnTo;
+                    res.redirect(returnTo);
+                } catch (error) {
+                    console.error('Discord callback error:', error);
+                    res.redirect('/error');
+                }
             }
         );
 
@@ -273,30 +291,56 @@ this.app.get('/callback', this.isAuthenticated.bind(this), async (req, res) => {
         // Logout route
         this.app.post('/logout', async (req, res, next) => {
             try {
-                if (req.user && req.sessionID) {
-                    // Find and clear Spotify data from session
-                    const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
-                    if (session) {
-                        session.isActive = false;
-                        session.spotify = null; // Clear Spotify data
-                        await req.user.save();
+                // Store user info before logout
+                const userId = req.user?.discordId;
+                const sessionId = req.sessionID;
+        
+                // 1. Clear session from database if user exists
+                if (req.user) {
+                    try {
+                        await User.findOneAndUpdate(
+                            { discordId: userId },
+                            { $pull: { sessions: { sessionId: sessionId } } },
+                            { new: true }
+                        );
+                    } catch (error) {
+                        console.error('Session cleanup error:', error);
+                        // Continue with logout even if cleanup fails
                     }
                 }
-                
-                // Clear all cookies
-                res.clearCookie('sid');
-                res.clearCookie('uid');
-                
-                // Proper passport logout
-                req.logout((err) => {
-                    if (err) { return next(err); }
-                    req.session.destroy(() => {
-                        res.redirect('/');
+        
+                // 2. Clear all cookies
+                Object.keys(req.cookies).forEach(cookie => {
+                    res.clearCookie(cookie, {
+                        path: '/',
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'lax'
                     });
                 });
+        
+                // 3. Destroy session and logout
+                req.session.destroy((err) => {
+                    if (err) {
+                        console.error('Session destruction error:', err);
+                    }
+                    req.logout(() => {
+                        res.json({ 
+                            success: true, 
+                            redirect: '/',
+                            message: 'Logged out successfully' 
+                        });
+                    });
+                });
+        
             } catch (error) {
                 console.error('Logout error:', error);
-                next(error);
+                // Still try to redirect even if there's an error
+                res.status(500).json({ 
+                    success: false, 
+                    redirect: '/',
+                    error: 'Logout failed but redirecting anyway'
+                });
             }
         });
 
@@ -524,24 +568,38 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
         this.app.use((err, req, res, next) => {
             console.error('Global error:', err);
 
-            res.status(err.status || 500).render('error', {
-                error: process.env.NODE_ENV === 'production'
-                    ? 'An unexpected error occurred'
-                    : {
-                        message: err.message,
-                        stack: err.stack,
-                        path: req.path
-                    },
-                botName: this.client.user?.username || 'Discord Bot',
-                user: req.user,
-                isAuthenticated: !!req.user,
-                hasSpotify: req.user && req.user.sessions && 
-                    req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify),
-                clientId: process.env.SPOTIFY_CLIENT_ID,
-                ngrokUrl: process.env.NGROK_URL,
-                baseUrl: process.env.BASE_URL,
-                avatar: this.client.user?.displayAvatarURL({ size: 1024 })
-            });
+            // Check if headers are already sent
+            if (res.headersSent) {
+                return next(err);
+            }
+
+            // Try to render error page, fall back to JSON if that fails
+            try {
+                res.status(err.status || 500).render('error', {
+                    error: process.env.NODE_ENV === 'production'
+                        ? 'An unexpected error occurred'
+                        : {
+                            message: err.message,
+                            stack: err.stack,
+                            path: req.path
+                        },
+                    botName: this.client.user?.username || 'Discord Bot',
+                    user: req.user,
+                    isAuthenticated: !!req.user,
+                    hasSpotify: req.user && req.user.sessions && 
+                        req.user.sessions.some(s => s.sessionId === req.sessionID && s.spotify),
+                    clientId: process.env.SPOTIFY_CLIENT_ID,
+                    ngrokUrl: process.env.NGROK_URL,
+                    baseUrl: process.env.BASE_URL,
+                    avatar: this.client.user?.displayAvatarURL({ size: 1024 })
+                });
+            } catch (renderError) {
+                // If rendering fails, send JSON response
+                res.status(500).json({
+                    error: 'Internal Server Error',
+                    details: process.env.NODE_ENV === 'production' ? undefined : err.message
+                });
+            }
         });
 
         return this.startServer();

@@ -65,40 +65,46 @@ class MusicPlayer {
     async checkVoiceStatus() {
         try {
             const response = await fetch('/api/voice/status');
-            if (!response.ok) {
-                throw new Error('Failed to check voice status');
-            }
+            if (!response.ok) throw new Error('Failed to check voice status');
             
             const data = await response.json();
             
             if (!data.inChannel) {
-                this.showToast({
-                    title: 'Not in a Voice Channel',
-                    message: 'Join a voice channel in any server where I\'m present to play music!',
-                    type: 'error',
-                    icon: 'fa-microphone-slash'
-                });
+                // Show a more helpful toast message with instructions
+                const toast = document.createElement('div');
+                toast.className = 'toast error';
+                toast.innerHTML = `
+                    <div class="toast-content">
+                        <i class="fas fa-microphone-slash"></i>
+                        <div class="toast-message">
+                            <h4>Not in a Voice Channel</h4>
+                            <p>To play music:</p>
+                            <ol style="margin: 5px 0 0 20px; font-size: 0.9em;">
+                                <li>Join a Discord voice channel</li>
+                                <li>Make sure the bot is in your server</li>
+                                <li>Try playing again</li>
+                            </ol>
+                        </div>
+                    </div>
+                `;
+
+                const container = document.getElementById('toast-container');
+                container.appendChild(toast);
+
+                // Remove toast after 6 seconds
+                setTimeout(() => {
+                    toast.classList.add('fade-out');
+                    setTimeout(() => toast.remove(), 300);
+                }, 6000);
+
                 throw new Error('voice_not_found');
             }
 
-            this.showToast({
-                title: 'Connected',
-                message: `Connected to ${data.guildName} • ${data.channelName}`,
-                type: 'success',
-                icon: 'fa-microphone'
-            });
-            
             return data;
         } catch (error) {
-            if (error.message !== 'voice_not_found') {
-                this.showToast({
-                    title: 'Connection Error',
-                    message: 'Failed to check voice status',
-                    type: 'error',
-                    icon: 'fa-exclamation-circle'
-                });
-            }
-            throw error;
+            if (error.message === 'voice_not_found') throw error;
+            console.error('Voice status check failed:', error);
+            throw new Error('Failed to check voice status');
         }
     }
 
@@ -127,10 +133,11 @@ class MusicPlayer {
     }
 
     async play(uri, guildId) {
-        if (this.isProcessing) return; // Prevent multiple calls
+        if (this.isProcessing) return;
         
         try {
-            this.setLoadingState(true);
+            this.isProcessing = true;
+            document.body.classList.add('music-loading');
             
             const voiceStatus = await this.checkVoiceStatus();
             
@@ -141,31 +148,28 @@ class MusicPlayer {
                 icon: 'fa-spinner fa-spin'
             });
             
-            const playOperation = async () => {
-                const response = await fetch('/api/music/play', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        uri,
-                        guildId: guildId || voiceStatus.guildId,
-                        channelId: voiceStatus.channelId
-                    })
-                });
+            const response = await fetch('/api/music/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uri: uri,
+                    guildId: guildId || voiceStatus.guildId,
+                    channelId: voiceStatus.channelId,
+                    userChannel: voiceStatus.channelId, // Add this to ensure bot joins user's channel
+                    noReplace: false // This will replace current track if any
+                })
+            });
 
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Failed to play track');
-                }
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to play track');
+            }
 
-                return await response.json();
-            };
-
-            const data = await this.retryOperation(playOperation);
+            const data = await response.json();
             
             this.isPlaying = true;
             this.currentTrack = data.track;
-            this.updateUI();
-
+            
             this.showToast({
                 title: 'Now Playing',
                 message: data.track.title,
@@ -177,7 +181,7 @@ class MusicPlayer {
         } catch (error) {
             if (error.message !== 'voice_not_found') {
                 this.showToast({
-                    title: 'Playback Failed',
+                    title: 'Error',
                     message: error.message,
                     type: 'error',
                     icon: 'fa-exclamation-circle'
@@ -185,7 +189,8 @@ class MusicPlayer {
             }
             throw error;
         } finally {
-            this.setLoadingState(false);
+            this.isProcessing = false;
+            document.body.classList.remove('music-loading');
         }
     }
 

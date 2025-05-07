@@ -1120,6 +1120,23 @@ body.music-loading::after {
 #toast-container {
     z-index: 9999;
 }
+
+.toast ol {
+    padding-left: 0;
+    margin: 5px 0 0 20px;
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.toast ol li {
+    margin-bottom: 3px;
+}
+
+.toast.fade-out {
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
 </style>
 </style>
 
@@ -1670,7 +1687,7 @@ function loadLikedSongs() {
             });
         }
         
-        // Set up refresh buttons
+        //Set up refresh buttons
         const refreshButtons = {
             'refresh-playlists': loadPlaylists,
             'refresh-liked-songs': loadLikedSongs,

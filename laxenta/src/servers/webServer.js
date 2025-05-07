@@ -884,45 +884,64 @@ this.app.get('/api/spotify/playlist/:id/tracks', this.isAuthenticated.bind(this)
 });
 
         // Play in Discord
-        this.app.post('/api/music/play', 
-            boundIsAuthenticated, 
-            ensureFreshSpotifyToken, 
-            async (req, res) => {
+        this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, res) => {
             try {
-                const { query } = req.body;
-                const user = await this.client.users.fetch(req.user.discordId);
-                let voiceChannel;
-
-                // Find user's voice channel
-                for (const guild of this.client.guilds.cache.values()) {
-                    const member = await guild.members.fetch(user.id).catch(() => null);
-                    if (member?.voice.channel) {
-                        voiceChannel = member.voice.channel;
-                        break;
+                const { uri, guildId, channelId } = req.body;
+                
+                // Get or create player
+                let player = this.client.manager.players.get(guildId);
+                
+                if (!player) {
+                    player = this.client.manager.create({
+                        guild: guildId,
+                        voiceChannel: channelId,
+                        textChannel: channelId, // or your designated text channel
+                        selfDeafen: true
+                    });
+                }
+        
+                // Connect to voice channel if not connected
+                if (!player.connected) {
+                    player.connect();
+                }
+        
+                // Search for the track
+                const result = await this.client.manager.search(uri, req.user);
+        
+                if (result.loadType === "LOAD_FAILED") {
+                    return res.status(500).json({ error: "Failed to load track" });
+                }
+        
+                if (result.loadType === "NO_MATCHES") {
+                    return res.status(404).json({ error: "No matches found" });
+                }
+        
+                // Handle different load types
+                const tracks = result.tracks;
+                if (!tracks?.length) {
+                    return res.status(404).json({ error: "No tracks found" });
+                }
+        
+                const track = tracks[0];
+                player.queue.add(track);
+        
+                if (!player.playing && !player.paused && !player.queue.size) {
+                    player.play();
+                }
+        
+                res.json({
+                    success: true,
+                    track: {
+                        title: track.title,
+                        author: track.author,
+                        duration: track.duration,
+                        thumbnail: track.thumbnail,
+                        uri: track.uri
                     }
-                }
-
-                if (!voiceChannel) {
-                    return res.json({ error: 'Join a voice channel first!' });
-                }
-
-                const player = this.client.manager.create({
-                    guild: voiceChannel.guild.id,
-                    voiceChannel: voiceChannel.id,
-                    textChannel: voiceChannel.guild.systemChannel?.id
                 });
-
-                await player.connect();
-                const result = await this.client.manager.search(query, user);
-                if (!result.tracks[0]) return res.json({ error: 'No tracks found' });
-
-                player.queue.add(result.tracks[0]);
-                if (!player.playing) player.play();
-
-                res.json({ success: true });
             } catch (error) {
-                console.error('Failed to play track:', error);
-                res.status(500).json({ error: 'Failed to play track' });
+                console.error('Play endpoint error:', error);
+                res.status(500).json({ error: error.message });
             }
         });
     }

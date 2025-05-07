@@ -97,10 +97,10 @@ class PlaylistManager {
             
             element.innerHTML = `
                 <img src="${imageUrl}" alt="${escapeHtml(item.track.name)}" loading="lazy">
-                <div class="song-info">
-                    <h4 title="${escapeHtml(item.track.name)}">${escapeHtml(item.track.name)}</h4>
-                    <p title="${escapeHtml(artistNames)}">${escapeHtml(artistNames)}</p>
-                    <button onclick="playInDiscord('${item.track.uri}')">
+                <div class="track-info">
+                    <h4>${escapeHtml(item.track.name)}</h4>
+                    <p>${escapeHtml(artistNames)}</p>
+                    <button onclick="window.musicPlayer.play('${item.track.uri}')" class="play-btn">
                         <i class="fas fa-play"></i> Play
                     </button>
                 </div>

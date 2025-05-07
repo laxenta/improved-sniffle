@@ -643,20 +643,47 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
     const boundIsAuthenticated = this.isAuthenticated.bind(this);
 
     // Routes with bound middleware
-    this.app.get('/api/spotify/liked-songs', 
-        boundIsAuthenticated,
-        ensureFreshSpotifyToken,
-        async (req, res) => {
-            try {
-                const spotifyApi = getSpotifyClientForUser(req);
-                const data = await spotifyApi.getMySavedTracks({ limit: 50 });
-                res.json(data.body.items);
-            } catch (error) {
-                console.error('Failed to fetch liked songs:', error);
-                res.status(500).json({ error: 'Failed to fetch liked songs' });
-            }
+    // this.app.get('/api/spotify/liked-songs', 
+    //     boundIsAuthenticated,
+    //     ensureFreshSpotifyToken,
+    //     async (req, res) => {
+    //         try {
+    //             const spotifyApi = getSpotifyClientForUser(req);
+    //             const data = await spotifyApi.getMySavedTracks({ limit: 50 });
+    //             res.json(data.body.items);
+    //         } catch (error) {
+    //             console.error('Failed to fetch liked songs:', error);
+    //             res.status(500).json({ error: 'Failed to fetch liked songs' });
+    //         }
+    //     }
+    // );
+
+    // Update the liked songs endpoint
+this.app.get('/api/spotify/liked-songs', 
+    boundIsAuthenticated,
+    ensureFreshSpotifyToken,
+    async (req, res) => {
+        try {
+            const spotifyApi = getSpotifyClientForUser(req);
+            const { offset = 0, limit = 50 } = req.query;
+            const data = await spotifyApi.getMySavedTracks({ 
+                limit: parseInt(limit), 
+                offset: parseInt(offset) 
+            });
+            
+            res.json({
+                items: data.body.items,
+                total: data.body.total,
+                limit: data.body.limit,
+                offset: data.body.offset
+            });
+        } catch (error) {
+            console.error('Failed to fetch liked songs:', error);
+            res.status(500).json({ error: 'Failed to fetch liked songs' });
         }
-    );
+    }
+);
+
 // does it fetch like inside songs of the playlist in pagination ways or idk what it does lol?? 
     this.app.get('/api/spotify/playlists', 
         boundIsAuthenticated,

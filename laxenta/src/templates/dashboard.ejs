@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hover.css/2.3.1/css/hover-min.css">
     <script src="/js/authManager.js"></script>
     <script src="/js/playlist-manager.js"></script>
+    <script src="/js/music-player.js"></script>
+    <script src="/js/song-manager.js"></script>
 
 
 </head>
@@ -34,7 +36,7 @@
             </div>
             <% if (user) { %>
                 <div class="user-info">
-                    <img src="<%= user.avatarURL %>" alt="<%= user.username %>">         
+                    <img src="https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHM0OYfiFeMI2p9MWie0CvL99U4GA1gf6_kayTt_kBblFwHwo8BW8JXlqfnYxKPmmBevsdZpJiIhrXJKvOSYipsaHqFIbCP6s5rOtPA59rEWG0TDcTxZjqTOH7KyNDpp3SdjDoloGHqOiM0jglAUqKA4-&format=source" alt="<%= user.username %>">         
                     <span><%= user.username %></span>
                     <% if (hasSpotify) { %>
                         <span class="spotify-connected">
@@ -987,6 +989,138 @@ footer {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+}
+
+.toast {
+    background: var(--background);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    width: 100%;
+}
+
+.toast-content {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 12px;
+}
+
+.toast i {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+.toast-message h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.toast-message p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+.toast.success {
+    border-left: 4px solid var(--success);
+}
+
+.toast.error {
+    border-left: 4px solid var(--danger);
+}
+
+.toast.info {
+    border-left: 4px solid var(--primary);
+}
+
+.toast.success i {
+    color: var(--success);
+}
+
+.toast.error i {
+    color: var(--danger);
+}
+
+.toast.info i {
+    color: var(--primary);
+}
+
+
+
+
+
+body.music-loading {
+    cursor: progress;
+}
+
+body.music-loading .play-btn {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+body.music-loading .play-btn:hover {
+    transform: none;
+    background: var(--glass-background);
+}
+
+.play-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.play-btn:disabled:hover {
+    transform: none;
+    background: var(--glass-background);
+}
+
+/* Optional loading overlay */
+body.music-loading::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(2px);
+    pointer-events: none;
+    z-index: 9998;
+}
+
+/* Ensure toasts stay visible */
+#toast-container {
+    z-index: 9999;
+}
+</style>
 </style>
 
 <script>
@@ -1161,31 +1295,95 @@ function renderPlaylists(playlists, container) {
         container.appendChild(element);
     });
 }
-    function renderLikedSongs(data, container) {
-        data.forEach(item => {
-            const track = item.track;
-            const element = document.createElement('div');
-            element.className = 'song-card animate__animated animate__fadeIn';
-            
-            const imageUrl = track.album && track.album.images && track.album.images.length > 0 ? 
-                track.album.images[0].url : '/images/default-song.png';
-            
-            const artistNames = track.artists.map(a => a.name).join(', ');
-            
-            element.innerHTML = `
-                <img src="${imageUrl}" alt="${escapeHtml(track.name)}" loading="lazy">
-                <div class="song-info">
-                    <h4 title="${escapeHtml(track.name)}">${escapeHtml(track.name)}</h4>
-                    <p title="${escapeHtml(artistNames)}">${escapeHtml(artistNames)}</p>
-                    <button onclick="playInDiscord('${track.uri}')">
-                        <i class="fas fa-play"></i> Play
-                    </button>
-                </div>
-            `;
-            container.appendChild(element);
-        });
+
+
+//liked songs
+// Update the renderLikedSongs function
+function renderLikedSongs(data, container) {
+    // Clear container first
+    container.innerHTML = '';
+    
+    if (!data.items || !Array.isArray(data.items)) {
+        container.innerHTML = '<div class="error-message">No songs found</div>';
+        return;
     }
 
+    // Render initial songs
+    data.items.forEach(item => {
+        if (!item.track) return;
+        
+        const element = document.createElement('div');
+        element.className = 'song-card animate__animated animate__fadeIn';
+        
+        const imageUrl = item.track.album?.images?.[0]?.url || '/images/default-song.png';
+        const artistNames = item.track.artists?.map(a => a.name).join(', ') || 'Unknown Artist';
+        const duration = formatDuration(item.track.duration_ms);
+        
+        element.innerHTML = `
+            <img src="${imageUrl}" alt="${escapeHtml(item.track.name)}" loading="lazy">
+            <div class="song-info">
+                <h4>${escapeHtml(item.track.name)}</h4>
+                <p>${escapeHtml(artistNames)}</p>
+                <span class="duration">${duration}</span>
+                <button onclick="window.musicPlayer.play('${track.uri}')" class="play-btn" ${this.isProcessing ? 'disabled' : ''}>
+                    <i class="fas fa-play"></i> Play
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(element);
+    });
+
+    // Set up infinite scroll if there are more songs
+    if (data.total > data.items.length) {
+        const sentinel = document.createElement('div');
+        sentinel.className = 'sentinel';
+        container.appendChild(sentinel);
+
+        let isLoading = false;
+        let currentOffset = data.offset + data.items.length;
+
+        const observer = new IntersectionObserver(async (entries) => {
+            const entry = entries[0];
+            if (entry.isIntersecting && !isLoading && currentOffset < data.total) {
+                isLoading = true;
+                sentinel.innerHTML = '<div class="spinner"></div>';
+
+                try {
+                    const response = await fetch(`/api/spotify/liked-songs?offset=${currentOffset}&limit=50`);
+                    const newData = await response.json();
+                    
+                    if (newData.items?.length) {
+                        renderLikedSongs(newData, container);
+                        currentOffset += newData.items.length;
+                    }
+                    
+                    if (currentOffset >= data.total) {
+                        observer.unobserve(sentinel);
+                        sentinel.remove();
+                    }
+                } catch (error) {
+                    console.error('Failed to load more songs:', error);
+                    sentinel.innerHTML = '<button onclick="loadMoreLikedSongs()">Try Again</button>';
+                }
+
+                isLoading = false;
+            }
+        });
+
+        observer.observe(sentinel);
+    }
+}
+
+// Helper function to format duration
+function formatDuration(ms) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+
+//np
     function renderNowPlaying(players, container) {
         players.forEach(player => {
             const element = document.createElement('div');
@@ -1220,7 +1418,7 @@ function renderPlaylists(playlists, container) {
         });
     }
 
-    // Simplified content loading wrapper functions
+// playlist-manager.js class deals with uhhh loading of tracks and opening, this loads playlist covers
     function loadPlaylists() {
         return loadContent(
             '/api/spotify/playlists', 
@@ -1229,15 +1427,12 @@ function renderPlaylists(playlists, container) {
             'Failed to load playlists'
         );
     }
-
-    function loadLikedSongs() {
-        return loadContent(
-            '/api/spotify/liked-songs', 
-            'liked-songs-container', 
-            renderLikedSongs, 
-            'Failed to load liked songs'
-        );
-    }
+// we load liked songs from song manager.js
+function loadLikedSongs() {
+    const container = document.getElementById('liked-songs-container');
+    if (!container) return;
+    window.songManager.renderLikedSongs(container, true);
+}
 
     function loadNowPlaying() {
         return loadContent(
@@ -1248,31 +1443,7 @@ function renderPlaylists(playlists, container) {
         );
     }
 
-    // Player control functions using the shared apiRequest function
-    async function playInDiscord(uri) {
-        try {
-            showToast('Sending to Discord...');
-            
-            const result = await apiRequest('/api/music/play', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: uri })
-            });
-            
-            if (result.error) {
-                showToast(result.error, 'error');
-                return;
-            }
-            
-            showToast('Track sent to Discord!', 'success');
-            setTimeout(() => loadNowPlaying(), 2000);
-        } catch (error) {
-            console.error('Play in Discord error:', error);
-            showToast('Failed to play track in Discord', 'error');
-        }
-    }
-
-    // Unified player control function to reduce duplication
+    // Unified player control function to reduce duplication ( these are duplicates )
     async function controlPlayer(action, guildId) {
         const actions = {
             pause: { endpoint: `/api/music/pause/${guildId}`, successMsg: 'Track paused' },
@@ -1358,15 +1529,15 @@ function renderPlaylists(playlists, container) {
                 const artistNames = track.artists.map(a => a.name).join(', ');
                 
                 element.innerHTML = `
-                    <img src="${imageUrl}" alt="${escapeHtml(track.name)}" loading="lazy">
-                    <div class="song-info">
-                        <h4 title="${escapeHtml(track.name)}">${escapeHtml(track.name)}</h4>
-                        <p title="${escapeHtml(artistNames)}">${escapeHtml(artistNames)}</p>
-                        <button onclick="playInDiscord('${track.uri}')">
-                            <i class="fas fa-play"></i> Play
-                        </button>
-                    </div>
-                `;
+        <img src="${imageUrl}" alt="${escapeHtml(track.name)}" loading="lazy">
+        <div class="song-info">
+            <h4 title="${escapeHtml(track.name)}">${escapeHtml(track.name)}</h4>
+            <p title="${escapeHtml(artistNames)}">${escapeHtml(artistNames)}</p>
+            <button onclick="window.musicPlayer.play('${track.uri}')" class="play-btn" ${this.isProcessing ? 'disabled' : ''}>
+                <i class="fas fa-play"></i> Play
+            </button>
+        </div>
+    `;
                 resultsContainer.appendChild(element);
             });
         } catch (error) {
@@ -1664,124 +1835,6 @@ function renderPlaylists(playlists, container) {
         }
     };
 
-    // Enhanced MusicPlayer class
-    class MusicPlayer {
-    constructor() {
-        this.isPlaying = false;
-        this.currentTrack = null;
-        this.queue = [];
-        this.volume = 100;
-    }
-
-    async checkVoiceStatus() {
-        try {
-            const response = await fetch('/api/voice/status');
-            const data = await response.json();
-            
-            if (!data.inChannel) {
-                throw new Error('You must be in a voice channel to play music!');
-            }
-            
-            return data;
-        } catch (error) {
-            console.error('Voice status check failed:', error);
-            throw error;
-        }
-    }
-
-    async play(uri, guildId) {
-        try {
-            const voiceStatus = await this.checkVoiceStatus();
-            
-            const response = await fetch('/api/music/play', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    uri,
-                    guildId: guildId || voiceStatus.guildId,
-                    channelId: voiceStatus.channelId
-                })
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
-            
-            this.isPlaying = true;
-            this.currentTrack = data.track;
-            return data;
-        } catch (error) {
-            console.error('Play failed:', error);
-            throw error;
-        }
-    }
-
-    async pause(guildId) {
-        const response = await fetch(`/api/music/pause/${guildId}`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-        this.isPlaying = false;
-        return data;
-    }
-
-    async resume(guildId) {
-        const response = await fetch(`/api/music/resume/${guildId}`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-        this.isPlaying = true;
-        return data;
-    }
-
-    async stop(guildId) {
-        const response = await fetch(`/api/music/stop/${guildId}`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-        this.isPlaying = false;
-        this.currentTrack = null;
-        return data;
-    }
-
-    async skip(guildId) {
-        const response = await fetch(`/api/music/skip/${guildId}`, {
-            method: 'POST'
-        });
-        return await response.json();
-    }
-
-    async setVolume(guildId, volume) {
-        const response = await fetch(`/api/music/volume/${guildId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ volume })
-        });
-        const data = await response.json();
-        this.volume = volume;
-        return data;
-    }
-
-    async getQueue(guildId) {
-        const response = await fetch(`/api/music/queue/${guildId}`);
-        const data = await response.json();
-        this.queue = data.queue;
-        return data;
-    }
-
-    async updateLatency() {
-        try {
-            const start = Date.now();
-            await fetch('/api/ping');
-            const latency = Date.now() - start;
-            document.getElementById('latency').textContent = `Latency: ${latency}ms`;
-            return latency;
-        } catch (error) {
-            console.error('Latency check failed:', error);
-            throw error;
-        }
-    }
-}
-    
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
         // Create particles

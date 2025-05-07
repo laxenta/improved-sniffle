@@ -17,7 +17,7 @@ function createTemplateData(req, client, commands = []) {
         hasSpotify: !!hasSpotify,
         spotifyProfile: hasSpotify ? currentSession.spotify.profile : null,
         avatar: client.user?.displayAvatarURL({ size: 1024 }),
-        avatarURL: client.user?.displayAvatarURL({ size: 1024 }),
+        avatarURL: 'https://static0.anpoimages.com/wordpress/wp-content/uploads/2024/05/discord-3-ap24-hero.jpg',
         clientId: process.env.CLIENT_ID,
         clientSecret: process.env.CLIENT_SECRET,
         SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,

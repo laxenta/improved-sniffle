@@ -657,7 +657,7 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
             }
         }
     );
-
+// does it fetch like inside songs of the playlist in pagination ways or idk what it does lol?? 
     this.app.get('/api/spotify/playlists', 
         boundIsAuthenticated,
         ensureFreshSpotifyToken,
@@ -673,6 +673,188 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
         }
     );
 
+
+    //NEW MUSIC RELATED ENDPOINTS FOR SPOTIFY INT DASHBOARD.EJS
+    // Add these inside setupApiRoutes() method
+
+// Status and Ping endpoints
+this.app.get('/api/status', (req, res) => {
+    res.json({
+        online: this.client.manager.nodes.some(node => node.connected),
+        uptime: this.client.uptime,
+        ping: this.client.ws.ping
+    });
+});
+
+this.app.get('/api/ping', (req, res) => {
+    res.json({ latency: this.client.ws.ping });
+});
+
+// Voice Channel Status
+this.app.get('/api/voice/status', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const user = await this.client.users.fetch(req.user.discordId);
+        let voiceStatus = { inChannel: false };
+
+        for (const guild of this.client.guilds.cache.values()) {
+            const member = await guild.members.fetch(user.id).catch(() => null);
+            if (member?.voice.channel) {
+                voiceStatus = {
+                    inChannel: true,
+                    guildId: guild.id,
+                    channelId: member.voice.channel.id
+                };
+                break;
+            }
+        }
+
+        res.json(voiceStatus);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get voice status', code: 500 });
+    }
+});
+
+// Music Control endpoints
+this.app.post('/api/music/pause/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        player.pause(true);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to pause', code: 500 });
+    }
+});
+
+this.app.post('/api/music/resume/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        player.pause(false);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to resume', code: 500 });
+    }
+});
+
+this.app.post('/api/music/stop/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        player.destroy();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to stop', code: 500 });
+    }
+});
+
+this.app.post('/api/music/skip/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        player.stop();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to skip', code: 500 });
+    }
+});
+
+this.app.post('/api/music/volume/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        const volume = Math.max(0, Math.min(100, parseInt(req.body.volume)));
+        player.setVolume(volume);
+        res.json({ success: true, volume });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to set volume', code: 500 });
+    }
+});
+
+this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        res.json({
+            queue: player.queue.map(track => ({
+                title: track.title,
+                author: track.author,
+                duration: track.duration,
+                thumbnail: track.thumbnail,
+                uri: track.uri,
+                requestedBy: track.requester.tag
+            })),
+            currentTrack: player.queue.current ? {
+                title: player.queue.current.title,
+                author: player.queue.current.author,
+                duration: player.queue.current.duration,
+                thumbnail: player.queue.current.thumbnail,
+                uri: player.queue.current.uri
+            } : null,
+            paused: player.paused,
+            volume: player.volume,
+            guildId: player.guild
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get queue', code: 500 });
+    }
+});
+
+this.app.get('/api/music/now-playing', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const players = Array.from(this.client.manager.players.values()).map(player => ({
+            guildId: player.guild,
+            guildName: this.client.guilds.cache.get(player.guild)?.name || 'Unknown Server',
+            playing: player.playing,
+            track: player.queue.current ? {
+                title: player.queue.current.title,
+                author: player.queue.current.author,
+                thumbnail: player.queue.current.thumbnail,
+                uri: player.queue.current.uri
+            } : null
+        }));
+        
+        res.json({ players });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get playing tracks', code: 500 });
+    }
+});
+
+// Spotify Search endpoint
+this.app.get('/api/spotify/search', this.isAuthenticated.bind(this), 
+    this.spotifyAuthHandler.ensureFreshToken.bind(this.spotifyAuthHandler),
+    async (req, res) => {
+    try {
+        const spotifyApi = getSpotifyClientForUser(req);
+        const data = await spotifyApi.search(req.query.q, ['track'], { limit: 20 });
+        res.json(data.body);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to search tracks', code: 500 });
+    }
+});
+
+// Playlist Tracks with Pagination
+this.app.get('/api/spotify/playlist/:id/tracks', this.isAuthenticated.bind(this),
+    this.spotifyAuthHandler.ensureFreshToken.bind(this.spotifyAuthHandler),
+    async (req, res) => {
+    try {
+        const spotifyApi = getSpotifyClientForUser(req);
+        const { offset = 0, limit = 50 } = req.query;
+        const data = await spotifyApi.getPlaylistTracks(req.params.id, {
+            offset: parseInt(offset),
+            limit: parseInt(limit)
+        });
+        res.json(data.body);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get playlist tracks', code: 500 });
+    }
+});
 
         // Play in Discord
         this.app.post('/api/music/play', 

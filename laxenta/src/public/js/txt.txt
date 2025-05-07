@@ -1,0 +1,166 @@
+class PlaylistManager {
+    constructor() {
+        this.itemsPerPage = 50;
+        this.expandedPlaylists = new Set();
+        this.currentPages = new Map(); // Track current page for each playlist
+        this.cache = new Map(); // Cache playlist data
+    }
+
+    async loadPlaylistTracks(playlistId, page = 1) {
+        try {
+            const offset = (page - 1) * this.itemsPerPage;
+            const response = await fetch(`/api/spotify/playlist/${playlistId}/tracks?offset=${offset}&limit=${this.itemsPerPage}`);
+            
+            if (!response.ok) {
+                throw new Error('Failed to load tracks');
+            }
+
+            const data = await response.json();
+            this.cache.set(`${playlistId}-${page}`, data);
+            return data;
+        } catch (error) {
+            console.error('Failed to load playlist tracks:', error);
+            throw error;
+        }
+    }
+
+    createTrackElement(track) {
+        const element = document.createElement('div');
+        element.className = 'track-item animate__animated animate__fadeIn hover-glow';
+        
+        const imageUrl = track.album?.images?.[2]?.url || '/images/default-song.png';
+        const artistNames = track.artists.map(a => a.name).join(', ');
+        
+        element.innerHTML = `
+            <img src="${imageUrl}" alt="Album art" loading="lazy">
+            <div class="track-info">
+                <h4>${escapeHtml(track.name)}</h4>
+                <p>${escapeHtml(artistNames)}</p>
+            </div>
+            <div class="track-duration">
+                ${this.formatDuration(track.duration_ms)}
+            </div>
+            <button onclick="window.musicPlayer.play('${track.uri}')" class="play-btn">
+                <i class="fas fa-play"></i>
+            </button>
+        `;
+
+        return element;
+    }
+
+    createPaginationElement(playlistId, currentPage, totalTracks) {
+        const totalPages = Math.ceil(totalTracks / this.itemsPerPage);
+        const pagination = document.createElement('div');
+        pagination.className = 'pagination animate__animated animate__fadeIn';
+        
+        pagination.innerHTML = `
+            <button class="page-btn" ${currentPage <= 1 ? 'disabled' : ''} 
+                    onclick="window.playlistManager.changePage('${playlistId}', ${currentPage - 1})">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span>Page ${currentPage} of ${totalPages}</span>
+            <button class="page-btn" ${currentPage >= totalPages ? 'disabled' : ''} 
+                    onclick="window.playlistManager.changePage('${playlistId}', ${currentPage + 1})">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        `;
+
+        return pagination;
+    }
+
+    async togglePlaylist(playlistId) {
+        const container = document.querySelector(`#playlist-${playlistId} .playlist-tracks`);
+        
+        if (!container) {
+            console.error('Playlist container not found');
+            return;
+        }
+
+        if (this.expandedPlaylists.has(playlistId)) {
+            // Collapse playlist
+            container.style.maxHeight = '0';
+            setTimeout(() => {
+                container.innerHTML = '';
+                this.expandedPlaylists.delete(playlistId);
+            }, 500);
+        } else {
+            // Expand playlist
+            try {
+                showToast('Loading playlist...', 'info');
+                await this.renderPlaylistTracks(playlistId, container);
+                this.expandedPlaylists.add(playlistId);
+                container.style.maxHeight = container.scrollHeight + 'px';
+                showToast('Playlist loaded!', 'success');
+            } catch (error) {
+                showToast('Failed to load playlist', 'error');
+                console.error(error);
+            }
+        }
+    }
+
+    async renderPlaylistTracks(playlistId, container, page = 1) {
+        try {
+            // Show loading state
+            container.innerHTML = `
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>Loading tracks...</p>
+                </div>
+            `;
+
+            const data = await this.loadPlaylistTracks(playlistId, page);
+            container.innerHTML = ''; // Clear loading state
+
+            // Create tracks container
+            const tracksContainer = document.createElement('div');
+            tracksContainer.className = 'tracks-container';
+
+            // Add tracks
+            data.items.forEach(item => {
+                if (item.track) {
+                    tracksContainer.appendChild(this.createTrackElement(item.track));
+                }
+            });
+
+            container.appendChild(tracksContainer);
+
+            // Add pagination if needed
+            if (data.total > this.itemsPerPage) {
+                container.appendChild(
+                    this.createPaginationElement(playlistId, page, data.total)
+                );
+            }
+
+            // Store current page
+            this.currentPages.set(playlistId, page);
+
+        } catch (error) {
+            container.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Failed to load tracks. Click to retry.
+                </div>
+            `;
+            container.onclick = () => this.renderPlaylistTracks(playlistId, container, page);
+        }
+    }
+
+    async changePage(playlistId, newPage) {
+        const container = document.querySelector(`#playlist-${playlistId} .playlist-tracks`);
+        if (container) {
+            await this.renderPlaylistTracks(playlistId, container, newPage);
+            // Scroll to top of playlist
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    formatDuration(ms) {
+        const minutes = Math.floor(ms / 60000);
+        const seconds = Math.floor((ms % 60000) / 1000);
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    clearCache() {
+        this.cache.clear();
+    }
+}

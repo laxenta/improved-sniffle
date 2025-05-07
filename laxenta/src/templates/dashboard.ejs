@@ -9,10 +9,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hover.css/2.3.1/css/hover-min.css">
     <script src="/js/authManager.js"></script>
+    <script src="/js/playlist-manager.js"></script>
 
 
 </head>
 <body>
+    <!-- Animated Background -->
+    <div class="animated-background"></div>
+    <div class="animated-particles" id="particles"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progress-bar">
+        <div class="progress-filled"></div>
+    </div>
+
     <header>
         <nav>
             <div class="logo">
@@ -124,12 +137,21 @@
         <% } %>
     </main>
 
+    <!-- Enhanced Footer -->
     <footer>
-        <p>&copy; <%= new Date().getFullYear() %> <%= botName %> | Discord & Spotify Integration</p>
-        <p>Bot Status: <span id="bot-status" class="status-badge offline">Checking...</span></p>
+        <div class="footer-content">
+            <p>&copy; <%= new Date().getFullYear() %> <%= botName %> | Discord & Spotify Integration</p>
+            <div class="bot-status">
+                <p>Bot Status: <span id="bot-status" class="status-badge offline">Checking...</span></p>
+                <span id="latency" class="latency">Latency: --ms</span>
+            </div>
+            <div class="github-link">
+                <a href="https://github.com/yourusername/improved-sniffle" target="_blank">
+                    <i class="fab fa-github"></i> View on GitHub
+                </a>
+            </div>
+        </div>
     </footer>
-
-
 
 <style>
 
@@ -144,6 +166,11 @@
     --card: #40444b;
     --border: #202225;
     --danger: #ed4245;
+    --glass-background: rgba(64, 68, 75, 0.25);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --animation-curve: cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --toast-bg: rgba(32, 34, 37, 0.9);
 }
 
 * {
@@ -204,7 +231,7 @@ nav {
 }
 
 .spotify-connected {
-    background-color: var(--secondary);
+    background-color: var (--secondary);
     color: white;
     border-radius: 20px;
     padding: 0.25rem 0.75rem;
@@ -642,18 +669,327 @@ footer {
     animation: fa-spin 2s infinite linear;
 }
 
+/* Animated Background */
+.animated-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+    background: linear-gradient(-45deg, #23272A, #2C2F33, #7289DA, #99AAB5);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+    opacity: 0.8;
+}
+
+.animated-particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    background: var(--glass-border);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: float 4s infinite;
+}
+
+/* Progress Bar */
+.progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--background-alt);
+    z-index: 1000;
+}
+
+.progress-filled {
+    width: 0;
+    height: 100%;
+    background: var(--secondary);
+    transition: width 0.3s var(--animation-curve);
+}
+
+/* Toast System */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--toast-bg);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    animation: slideIn 0.3s var(--animation-curve);
+}
+
+/* Glass Card Effects */
+.playlist-card, .song-card, .player-card {
+    background: var(--glass-background);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s var(--animation-curve);
+}
+
+.playlist-card:hover, .song-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 30px var (--shadow-color);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Enhanced Animations */
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+    }
+    50% { opacity: 0.8; }
+    100% {
+        transform: translateY(-100vh) translateX(100px);
+        opacity: 0;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Playlist Expansion */
+.playlist-tracks {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s var(--animation-curve);
+}
+
+.playlist-tracks.expanded {
+    max-height: 2000px;
+}
+
+/* New Footer Styles */
+footer {
+    background: var(--glass-background);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--glass-border);
+    padding: 2rem 0;
+    margin-top: 3rem;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2rem;
+}
+
+.latency {
+    font-size: 0.8rem;
+    color: var(--text);
+    margin-left: 1rem;
+}
+
+.github-link a {
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.github-link a:hover {
+    color: var(--primary);
+}
+
+
+
+
+
+
+.playlist-tracks {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.5s var(--animation-curve);
+    }
+
+    .track-item {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        background: var(--glass-background);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        transition: transform 0.2s ease;
+    }
+
+    .track-item:hover {
+        transform: translateX(5px);
+        border-color: var(--primary);
+    }
+
+    .track-item img {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+    }
+
+    .track-info {
+        overflow: hidden;
+    }
+
+    .track-info h4 {
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .track-info p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text);
+        opacity: 0.7;
+    }
+
+    .track-duration {
+        font-size: 0.9rem;
+        color: var(--text);
+        opacity: 0.7;
+    }
+
+    .play-btn {
+        padding: 0.5rem;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 1rem;
+    }
+
+    .page-btn {
+        background: var(--glass-background);
+        border: 1px solid var(--glass-border);
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .page-btn:not(:disabled):hover {
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+
+/* playlist viewss */
+#playlist-view {
+    animation: fadeIn 0.3s ease;
+}
+
+.playlist-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1rem;
+}
+
+.back-btn {
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.sentinel {
+    width: 100%;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    grid-column: 1 / -1;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--glass-border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 </style>
 
-
-
-
-
-
-
-
-
-
-   <script>
+<script>
     // Session management - streamlined with async/await and better error handling
     async function checkSession() {
         try {
@@ -801,28 +1137,30 @@ footer {
     }
 
     // Rendering functions for different content types
-    function renderPlaylists(playlists, container) {
-        playlists.forEach(playlist => {
-            const element = document.createElement('div');
-            element.className = 'playlist-card animate__animated animate__fadeIn';
-            
-            const imageUrl = playlist.images && playlist.images.length > 0 ? 
-                playlist.images[0].url : '/images/default-playlist.png';
-            
-            element.innerHTML = `
-                <img src="${imageUrl}" alt="${escapeHtml(playlist.name)}" loading="lazy">
-                <div class="playlist-info">
-                    <h4 title="${escapeHtml(playlist.name)}">${escapeHtml(playlist.name)}</h4>
-                    <p>${playlist.tracks.total} tracks</p>
-                    <button onclick="playInDiscord('${playlist.uri}')">
-                        <i class="fas fa-play"></i> Play
-                    </button>
-                </div>
-            `;
-            container.appendChild(element);
-        });
-    }
 
+    // Update the renderPlaylists function in dashboard.ejs
+// Update the renderPlaylists function in dashboard.ejs
+function renderPlaylists(playlists, container) {
+    playlists.forEach(playlist => {
+        const element = document.createElement('div');
+        element.className = 'playlist-card animate__animated animate__fadeIn';
+        
+        const imageUrl = playlist.images?.[0]?.url || '/images/default-playlist.png';
+        
+        element.innerHTML = `
+            <img src="${imageUrl}" alt="${escapeHtml(playlist.name)}" loading="lazy">
+            <div class="playlist-info">
+                <h4 title="${escapeHtml(playlist.name)}">${escapeHtml(playlist.name)}</h4>
+                <p>${playlist.tracks.total} tracks</p>
+                <button onclick="window.playlistManager.openPlaylist('${playlist.id}', '${escapeHtml(playlist.name)}')">
+                    <i class="fas fa-list"></i> View Playlist
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(element);
+    });
+}
     function renderLikedSongs(data, container) {
         data.forEach(item => {
             const track = item.track;
@@ -1268,5 +1606,314 @@ footer {
             window.showToast('Logout failed. Please try again.', 'error');
         }
     });
+
+    // Common utility functions
+    const utils = {
+        async fetchWithProgress(url, options = {}) {
+            const response = await fetch(url, options);
+            const reader = response.body.getReader();
+            const contentLength = +response.headers.get('Content-Length');
+
+            let receivedLength = 0;
+            const chunks = [];
+
+            while(true) {
+                const {done, value} = await reader.read();
+                
+                if (done) break;
+                
+                chunks.push(value);
+                receivedLength += value.length;
+
+                const progress = (receivedLength / contentLength) * 100;
+                document.querySelector('.progress-filled').style.width = `${progress}%`;
+            }
+
+            document.querySelector('.progress-filled').style.width = '100%';
+            setTimeout(() => {
+                document.querySelector('.progress-filled').style.width = '0%';
+            }, 500);
+
+            const chunksAll = new Uint8Array(receivedLength);
+            let position = 0;
+            for(let chunk of chunks) {
+                chunksAll.set(chunk, position);
+                position += chunk.length;
+            }
+
+            return new Response(chunksAll);
+        },
+
+        showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 
+                               type === 'error' ? 'exclamation-circle' : 
+                               'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+
+            const container = document.getElementById('toast-container');
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    };
+
+    // Enhanced MusicPlayer class
+    class MusicPlayer {
+    constructor() {
+        this.isPlaying = false;
+        this.currentTrack = null;
+        this.queue = [];
+        this.volume = 100;
+    }
+
+    async checkVoiceStatus() {
+        try {
+            const response = await fetch('/api/voice/status');
+            const data = await response.json();
+            
+            if (!data.inChannel) {
+                throw new Error('You must be in a voice channel to play music!');
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('Voice status check failed:', error);
+            throw error;
+        }
+    }
+
+    async play(uri, guildId) {
+        try {
+            const voiceStatus = await this.checkVoiceStatus();
+            
+            const response = await fetch('/api/music/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uri,
+                    guildId: guildId || voiceStatus.guildId,
+                    channelId: voiceStatus.channelId
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            
+            this.isPlaying = true;
+            this.currentTrack = data.track;
+            return data;
+        } catch (error) {
+            console.error('Play failed:', error);
+            throw error;
+        }
+    }
+
+    async pause(guildId) {
+        const response = await fetch(`/api/music/pause/${guildId}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        this.isPlaying = false;
+        return data;
+    }
+
+    async resume(guildId) {
+        const response = await fetch(`/api/music/resume/${guildId}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        this.isPlaying = true;
+        return data;
+    }
+
+    async stop(guildId) {
+        const response = await fetch(`/api/music/stop/${guildId}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        this.isPlaying = false;
+        this.currentTrack = null;
+        return data;
+    }
+
+    async skip(guildId) {
+        const response = await fetch(`/api/music/skip/${guildId}`, {
+            method: 'POST'
+        });
+        return await response.json();
+    }
+
+    async setVolume(guildId, volume) {
+        const response = await fetch(`/api/music/volume/${guildId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ volume })
+        });
+        const data = await response.json();
+        this.volume = volume;
+        return data;
+    }
+
+    async getQueue(guildId) {
+        const response = await fetch(`/api/music/queue/${guildId}`);
+        const data = await response.json();
+        this.queue = data.queue;
+        return data;
+    }
+
+    async updateLatency() {
+        try {
+            const start = Date.now();
+            await fetch('/api/ping');
+            const latency = Date.now() - start;
+            document.getElementById('latency').textContent = `Latency: ${latency}ms`;
+            return latency;
+        } catch (error) {
+            console.error('Latency check failed:', error);
+            throw error;
+        }
+    }
+}
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        // Create particles
+        const createParticles = () => {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = Math.random() * 5 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.animationDuration = Math.random() * 3 + 2 + 's';
+                particle.style.animationDelay = Math.random() * 2 + 's';
+                container.appendChild(particle);
+            }
+        };
+
+        createParticles();
+        
+        // Initialize managers
+        window.playlistManager = new PlaylistManager();
+        window.musicPlayer = new MusicPlayer();
+
+        // Start latency updates
+        setInterval(() => window.musicPlayer.updateLatency(), 5000);
+    });
+
+    // Add styles for the new components
+    const style = document.createElement('style');
+    style.textContent = `
+        .playlist-tracks {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s var(--animation-curve);
+        }
+
+        .track-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background: var(--glass-background);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        .track-item:hover {
+            transform: translateX(5px);
+            border-color: var(--primary);
+        }
+
+        .track-item img {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+        }
+
+        .track-info {
+            overflow: hidden;
+        }
+
+        .track-info h4 {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .track-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text);
+            opacity: 0.7;
+        }
+
+        .track-duration {
+            font-size: 0.9rem;
+            color: var(--text);
+            opacity: 0.7;
+        }
+
+        .play-btn {
+            padding: 0.5rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+        }
+
+        .page-btn {
+            background: var(--glass-background);
+            border: 1px solid var(--glass-border);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-btn:not(:disabled):hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+    `;
+
+    document.head.appendChild(style);
 </script>
+
+</body>
+</html>
 

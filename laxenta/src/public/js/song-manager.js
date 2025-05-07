@@ -74,7 +74,7 @@ class SongManager {
                     <p>${escapeHtml(artistNames)}</p>
                     <span class="duration">${duration}</span>
                     <button onclick="window.musicPlayer.play('${item.track.uri}')" class="play-btn">
-                        <i class="fas fa-play"></i> Play
+                        <i class="fas fa-play"></i>
                     </button>
                 </div>
             `;

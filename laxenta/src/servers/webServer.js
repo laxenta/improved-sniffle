@@ -883,67 +883,135 @@ this.app.get('/api/spotify/playlist/:id/tracks', this.isAuthenticated.bind(this)
     }
 });
 
-        // Play in Discord
-        this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, res) => {
-            try {
-                const { uri, guildId, channelId } = req.body;
-                
-                // Get or create player
-                let player = this.client.manager.players.get(guildId);
-                
-                if (!player) {
-                    player = this.client.manager.create({
-                        guild: guildId,
-                        voiceChannel: channelId,
-                        textChannel: channelId, // or your designated text channel
-                        selfDeafen: true
-                    });
-                }
+//queue
+this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req, res) => {
+    try {
+        const player = this.client.manager.players.get(req.params.guildId);
+        if (!player) {
+            return res.status(404).json({ error: 'No active player found' });
+        }
         
-                // Connect to voice channel if not connected
-                if (!player.connected) {
-                    player.connect();
-                }
-        
-                // Search for the track
-                const result = await this.client.manager.search(uri, req.user);
-        
-                if (result.loadType === "LOAD_FAILED") {
-                    return res.status(500).json({ error: "Failed to load track" });
-                }
-        
-                if (result.loadType === "NO_MATCHES") {
-                    return res.status(404).json({ error: "No matches found" });
-                }
-        
-                // Handle different load types
-                const tracks = result.tracks;
-                if (!tracks?.length) {
-                    return res.status(404).json({ error: "No tracks found" });
-                }
-        
-                const track = tracks[0];
-                player.queue.add(track);
-        
-                if (!player.playing && !player.paused && !player.queue.size) {
-                    player.play();
-                }
-        
-                res.json({
-                    success: true,
-                    track: {
-                        title: track.title,
-                        author: track.author,
-                        duration: track.duration,
-                        thumbnail: track.thumbnail,
-                        uri: track.uri
-                    }
-                });
-            } catch (error) {
-                console.error('Play endpoint error:', error);
-                res.status(500).json({ error: error.message });
-            }
+        res.json({
+            current: player.queue.current ? {
+                title: player.queue.current.title,
+                author: player.queue.current.author,
+                duration: player.queue.current.duration,
+                thumbnail: player.queue.current.thumbnail,
+                uri: player.queue.current.uri,
+                requester: player.queue.current.requester.username
+            } : null,
+            queue: player.queue.map(track => ({
+                title: track.title,
+                author: track.author,
+                duration: track.duration,
+                thumbnail: track.thumbnail,
+                uri: track.uri,
+                requester: track.requester.username
+            })),
+            paused: player.paused,
+            volume: player.volume,
+            playing: player.playing
         });
+    } catch (error) {
+        console.error('Queue fetch error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const { uri, guildId, channelId } = req.body;
+        
+        // Get or create player
+        let player = this.client.manager.players.get(guildId);
+        
+        if (!player) {
+            // Create new player without event handling (handled in lavalink.js)
+            player = this.client.manager.create({
+                guild: guildId,
+                voiceChannel: channelId,
+                textChannel: channelId,
+                selfDeafen: true
+            });
+        }
+
+        // Connect to voice channel if not connected
+        if (!player.connected) {
+            try {
+                await player.connect();
+            } catch (error) {
+                console.error("Connection error:", error);
+                return res.status(500).json({ error: "Failed to connect to voice channel" });
+            }
+        }
+
+        // Handle Spotify URI conversion
+        let searchQuery = uri;
+        if (uri.startsWith('spotify:track:')) {
+            try {
+                const trackId = uri.split(':').pop();
+                const spotifyApi = getSpotifyClientForUser(req);
+                const trackData = await spotifyApi.getTrack(trackId);
+                searchQuery = `${trackData.body.name} ${trackData.body.artists[0].name}`;
+            } catch (error) {
+                console.error("Spotify conversion error:", error);
+                return res.status(500).json({ error: "Failed to process Spotify track" });
+            }
+        }
+
+        // Search for track
+        const result = await this.client.manager.search(searchQuery, req.user);
+
+        if (result.loadType === "LOAD_FAILED") {
+            return res.status(500).json({ error: "Failed to load track" });
+        }
+
+        if (result.loadType === "NO_MATCHES") {
+            return res.status(404).json({ error: "No matches found" });
+        }
+
+        const track = result.tracks[0];
+        if (!track) {
+            return res.status(404).json({ error: "No track found" });
+        }
+
+        // Add track info
+        track.requester = {
+            username: req.user.username,
+            id: req.user.discordId
+        };
+
+        // Add to queue and play if not playing
+        player.queue.add(track);
+        
+        if (!player.playing && !player.paused && player.queue.size === 1) {
+            player.play();
+        }
+
+        // Send response with track info and queue position
+        res.json({
+            success: true,
+            track: {
+                title: track.title,
+                author: track.author,
+                duration: track.duration,
+                thumbnail: track.thumbnail,
+                uri: track.uri,
+                position: player.queue.size,
+                isPlaying: player.playing && player.queue.current?.uri === track.uri
+            },
+            queueLength: player.queue.size,
+            queuePosition: player.queue.size
+        });
+
+    } catch (error) {
+        console.error('Play endpoint error:', error);
+        res.status(500).json({ 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+});
     }
 
     async startServer() {

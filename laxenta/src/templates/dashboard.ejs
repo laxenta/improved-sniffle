@@ -60,7 +60,7 @@
         <% if (!hasSpotify) { %>
             <div class="auth-prompt">
                 <h2>Connect Your Spotify</h2>
-                <p>Link your Spotify account to start playing music in Discord</p>
+                <p>Link your Spotify account to start playing music directly in Discord</p>
                 <a href="/auth/spotify" class="spotify-auth-btn">
                     <i class="fab fa-spotify"></i> Link Spotify Account
                 </a>
@@ -92,6 +92,9 @@
                 </div>
                 <div class="tab" data-tab="liked-songs">
                     <i class="fas fa-heart"></i> Liked Songs
+                </div>
+                <div class="tab" data-tab="queue">
+                    <i class="fas fa-music"></i> Queue
                 </div>
             </div>
 
@@ -134,6 +137,20 @@
                             <div class="skeleton-button skeleton"></div>
                         </div>
                     <% } %>
+                </div>
+            </section>
+
+            <!-- display the queue -->
+            <section id="queue-tab" class="tab-content">
+                <h2>
+                    <i class="fas fa-list"></i> Current Queue
+                    <button class="refresh-button"
+                        onclick="window.musicPlayer.updateQueueDisplay(window.musicPlayer.activeGuildId)">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </h2>
+                <div id="queue-container" class="queue-container">
+                    <!-- Queue will be populated here -->
                 </div>
             </section>
         <% } %>
@@ -1137,6 +1154,49 @@ body.music-loading::after {
     transform: translateX(100%);
     transition: all 0.3s ease;
 }
+.queue-container {
+    background: var(--glass-background);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.current-track {
+    margin-bottom: 2rem;
+}
+
+.track-item {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--card);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.track-item.current {
+    border: 1px solid var(--secondary);
+    background: var(--glass-background);
+}
+
+.track-item img {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+}
+
+.track-item .position {
+    width: 24px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.track-item .requester {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
 </style>
 </style>
 
@@ -1247,7 +1307,7 @@ body.music-loading::after {
             container.innerHTML = `
                 <div class="loading-container">
                     <div class="spinner"></div>
-                    <p>Loading...</p>
+                    <p>Loading your cute songs, please wait a moment uwu...</p>
                 </div>
             `;
             
@@ -1288,8 +1348,6 @@ body.music-loading::after {
     }
 
     // Rendering functions for different content types
-
-    // Update the renderPlaylists function in dashboard.ejs
 // Update the renderPlaylists function in dashboard.ejs
 function renderPlaylists(playlists, container) {
     playlists.forEach(playlist => {
@@ -1343,7 +1401,7 @@ function renderLikedSongs(data, container) {
                 <p>${escapeHtml(artistNames)}</p>
                 <span class="duration">${duration}</span>
                 <button onclick="window.musicPlayer.play('${track.uri}')" class="play-btn" ${this.isProcessing ? 'disabled' : ''}>
-                    <i class="fas fa-play"></i> Play
+                    <i class="fas fa-play"></i> play 
                 </button>
             </div>
         `;
@@ -1687,11 +1745,13 @@ function loadLikedSongs() {
             });
         }
         
-        //Set up refresh buttons
+        //Set up refresh buttons ;3
         const refreshButtons = {
             'refresh-playlists': loadPlaylists,
             'refresh-liked-songs': loadLikedSongs,
-            'refresh-now-playing': loadNowPlaying
+            'refresh-now-playing': loadNowPlaying,
+            'refresh-queue': () => window.musicPlayer.updateQueueDisplay(window.musicPlayer.activeGuildId)
+
         };
         
         Object.entries(refreshButtons).forEach(([id, callback]) => {

@@ -741,7 +741,7 @@ this.app.get('/api/voice/status', this.isAuthenticated.bind(this), async (req, r
     }
 });
 
-// Music Control endpoints
+// Music Control endpoints ( UN USED for now )
 this.app.post('/api/music/pause/:guildId', this.isAuthenticated.bind(this), (req, res) => {
     try {
         const player = this.client.manager.players.get(req.params.guildId);
@@ -802,7 +802,7 @@ this.app.post('/api/music/volume/:guildId', this.isAuthenticated.bind(this), (re
         res.status(500).json({ error: 'Failed to set volume', code: 500 });
     }
 });
-
+//unused completed here
 this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req, res) => {
     try {
         const player = this.client.manager.players.get(req.params.guildId);
@@ -829,7 +829,7 @@ this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req,
             guildId: player.guild
         });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to get queue', code: 500 });
+        res.status(500).json({ error: 'failed to get queue', code: 500 });
     }
 });
 
@@ -879,7 +879,7 @@ this.app.get('/api/spotify/playlist/:id/tracks', this.isAuthenticated.bind(this)
         });
         res.json(data.body);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to get playlist tracks', code: 500 });
+        res.status(500).json({ error: 'failed to get playlist tracks', code: 500 });
     }
 });
 
@@ -899,7 +899,7 @@ this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req,
                 thumbnail: player.queue.current.thumbnail,
                 uri: player.queue.current.uri,
                 requester: player.queue.current.requester.username
-            } : null,
+            } : "nobody knows :3",      // might cause issues cz its not null lol
             queue: player.queue.map(track => ({
                 title: track.title,
                 author: track.author,
@@ -917,12 +917,12 @@ this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req,
         res.status(500).json({ error: error.message });
     }
 });
-
+// playyy in dc
 this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, res) => {
     try {
         const { uri, guildId, channelId } = req.body;
         
-        // Get or create player
+        // Get or create player ( its get obv xd )
         let player = this.client.manager.players.get(guildId);
         
         if (!player) {

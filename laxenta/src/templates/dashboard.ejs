@@ -16,14 +16,10 @@
 
 </head>
 <body>
-    <!-- Animated Background -->
     <div class="animated-background"></div>
     <div class="animated-particles" id="particles"></div>
 
-    <!-- Toast Container -->
     <div id="toast-container"></div>
-
-    <!-- Progress Bar -->
     <div class="progress-bar" id="progress-bar">
         <div class="progress-filled"></div>
     </div>
@@ -43,7 +39,6 @@
                             <i class="fab fa-spotify"></i> Connected :3
                         </span>
                     <% } %>
-                    <!-- Replace form with button -->
                     <button 
                         onclick="window.authManager.logout()" 
                         class="logout-btn"
@@ -66,7 +61,7 @@
                 </a>
             </div>
         <% } else { %>
-            <!-- Search Section -->
+            <!--srch -->
             <section class="search-section">
                 <h2><i class="fas fa-search"></i> Search and Play</h2>
                 <div class="search-container">
@@ -85,7 +80,7 @@
                 </div>
             </section>
 
-            <!-- Content Tabs -->
+            <!-- Contentsss :3 -->
             <div class="tabs">
                 <div class="tab active" data-tab="playlists">
                     <i class="fas fa-list"></i> Playlists
@@ -97,8 +92,7 @@
                     <i class="fas fa-music"></i> Queue
                 </div>
             </div>
-
-            <!-- Playlists Section -->
+<!-- playlist -->
             <section class="tab-content active" id="playlists-tab">
                 <h2>
                     <i class="fas fa-list"></i> Your Playlists
@@ -118,9 +112,8 @@
                     <% } %>
                 </div>
             </section>
-
-            <!-- Liked Songs Section -->
-            <section class="tab-content" id="liked-songs-tab">
+<!-- liked songs -->
+            <section class="tab-content" id="liked-songs-tab"> 
                 <h2>
                     <i class="fas fa-heart"></i> Liked Songs
                     <button class="refresh-button" id="refresh-liked-songs" title="Refresh">
@@ -128,7 +121,6 @@
                     </button>
                 </h2>
                 <div id="liked-songs-container" class="content-grid">
-                    <!-- Skeleton loaders -->
                     <% for (let i = 0; i < 8; i++) { %>
                         <div class="skeleton-card">
                             <div class="skeleton-img skeleton"></div>
@@ -156,10 +148,10 @@
         <% } %>
     </main>
 
-    <!-- Enhanced Footer -->
+    <!--footer -->
     <footer>
         <div class="footer-content">
-            <p>&copy; <%= new Date().getFullYear() %> <%= botName %> | Discord & Spotify Integration</p>
+            <p>&copy; <%= new Date().getFullYear() %> <%= botName %> | /cute </p>
             <div class="bot-status">
                 <p>Bot Status: <span id="bot-status" class="status-badge offline">Checking...</span></p>
                 <span id="latency" class="latency">Latency: --ms</span>
@@ -168,6 +160,7 @@
                 <a href="https://github.com/yourusername/improved-sniffle" target="_blank">
                     <i class="fab fa-github"></i> View on GitHub
                 </a>
+                <span class="version-info">Version 1.0.0</span> <!-- Added version info -->
             </div>
         </div>
     </footer>
@@ -720,7 +713,6 @@ footer {
     animation: float 4s infinite;
 }
 
-/* Progress Bar */
 .progress-bar {
     position: fixed;
     top: 0;
@@ -758,7 +750,6 @@ footer {
     animation: slideIn 0.3s var(--animation-curve);
 }
 
-/* Glass Card Effects */
 .playlist-card, .song-card, .player-card {
     background: var(--glass-background);
     backdrop-filter: blur(10px);
@@ -772,7 +763,6 @@ footer {
     border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Enhanced Animations */
 @keyframes gradient {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -813,7 +803,6 @@ footer {
     max-height: 2000px;
 }
 
-/* New Footer Styles */
 footer {
     background: var(--glass-background);
     backdrop-filter: blur(10px);
@@ -1119,7 +1108,6 @@ body.music-loading .play-btn:hover {
     background: var(--glass-background);
 }
 
-/* Optional loading overlay */
 body.music-loading::after {
     content: '';
     position: fixed;
@@ -1201,7 +1189,7 @@ body.music-loading::after {
 </style>
 
 <script>
-    // Session management - streamlined with async/await and better error handling
+    //Session management - streamlined with async/await and better error handling cz fk it
     async function checkSession() {
         try {
             const response = await fetch('/api/auth/verify');
@@ -1409,7 +1397,7 @@ function renderLikedSongs(data, container) {
         container.appendChild(element);
     });
 
-    // Set up infinite scroll if there are more songs
+    // Set up infinite scroll cz theres always more songs
     if (data.total > data.items.length) {
         const sentinel = document.createElement('div');
         sentinel.className = 'sentinel';
@@ -1518,7 +1506,7 @@ function loadLikedSongs() {
         );
     }
 
-    // Unified player control function to reduce duplication ( these are duplicates )
+    // Unified player control function to reduce duplication ( these are UNUSEDDDDDDDD )
     async function controlPlayer(action, guildId) {
         const actions = {
             pause: { endpoint: `/api/music/pause/${guildId}`, successMsg: 'Track paused' },
@@ -1565,6 +1553,11 @@ function loadLikedSongs() {
         return controlPlayer('stop', guildId);
     }
 
+
+
+
+
+    //this is used obv>
     // Search functionality
     async function searchSpotify(query) {
         const resultsContainer = document.getElementById('search-results');
@@ -1841,7 +1834,6 @@ function loadLikedSongs() {
                 localStorage.clear();
                 sessionStorage.clear();
                 
-                // Redirect to home
                 window.location.href = data.redirect;
             } else {
                 throw new Error(data.error || 'Logout failed');
@@ -1850,7 +1842,6 @@ function loadLikedSongs() {
             console.error('Logout failed:', error);
             button.classList.remove('loading');
             button.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
-            // Show error toast
             window.showToast('Logout failed. Please try again.', 'error');
         }
     });
@@ -1914,7 +1905,6 @@ function loadLikedSongs() {
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-        // Create particles
         const createParticles = () => {
             const container = document.getElementById('particles');
             for (let i = 0; i < 50; i++) {

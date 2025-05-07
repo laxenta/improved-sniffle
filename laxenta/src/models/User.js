@@ -109,5 +109,29 @@ userSchema.methods.updateSpotifyTokens = function(tokens) {
     return this.save();
 };
 
+userSchema.methods.clearAuthData = async function() {
+    try {
+        // Clear ALL sessions and spotify data atomically
+        await this.model('User').findByIdAndUpdate(
+            this._id,
+            {
+                $set: { sessions: [] },  // Clear all sessions
+                $unset: { 
+                    "spotifyAuth": "",   // Remove global spotify auth
+                }
+            },
+            { new: true }
+        );
+
+        // Clear in-memory data
+        this.sessions = [];
+        this.spotifyAuth = undefined;
+
+        return true;
+    } catch (error) {
+        console.error('Clear auth data error:', error);
+        throw error;
+    }
+};
 const User = mongoose.model('User', userSchema);
 module.exports = User;

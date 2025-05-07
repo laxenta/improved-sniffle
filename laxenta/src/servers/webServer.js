@@ -291,51 +291,57 @@ this.app.get('/callback', this.isAuthenticated.bind(this), async (req, res) => {
         // Logout route
         this.app.post('/logout', async (req, res, next) => {
             try {
-                // Store user info before logout
-                const userId = req.user?.discordId;
-                const sessionId = req.sessionID;
-        
-                // 1. Clear session from database if user exists
                 if (req.user) {
+                    const userId = req.user._id;
+                    const sessionId = req.sessionID;
+        
                     try {
-                        await User.findOneAndUpdate(
-                            { discordId: userId },
-                            { $pull: { sessions: { sessionId: sessionId } } },
-                            { new: true }
-                        );
-                    } catch (error) {
-                        console.error('Session cleanup error:', error);
-                        // Continue with logout even if cleanup fails
-                    }
-                }
+                        // 1. Clear ALL user sessions and spotify data
+                        await User.findByIdAndUpdate(userId, {
+                            $set: { sessions: [] },
+                            $unset: { spotifyAuth: "" }
+                        });
         
-                // 2. Clear all cookies
-                Object.keys(req.cookies).forEach(cookie => {
-                    res.clearCookie(cookie, {
-                        path: '/',
-                        httpOnly: true,
-                        secure: process.env.NODE_ENV === 'production',
-                        sameSite: 'lax'
-                    });
-                });
+                        // 2. Clear all cookies
+                        Object.keys(req.cookies).forEach(cookie => {
+                            res.clearCookie(cookie, {
+                                path: '/',
+                                httpOnly: true,
+                                secure: process.env.NODE_ENV === 'production',
+                                sameSite: 'lax'
+                            });
+                        });
         
-                // 3. Destroy session and logout
-                req.session.destroy((err) => {
-                    if (err) {
-                        console.error('Session destruction error:', err);
-                    }
-                    req.logout(() => {
+                        // 3. Destroy session
+                        await new Promise((resolve) => {
+                            req.session.destroy((err) => {
+                                if (err) console.error('Session destruction error:', err);
+                                resolve();
+                            });
+                        });
+        
+                        // 4. Logout from passport
+                        await new Promise((resolve) => req.logout(resolve));
+        
                         res.json({ 
                             success: true, 
                             redirect: '/',
                             message: 'Logged out successfully' 
                         });
-                    });
-                });
         
+                    } catch (error) {
+                        console.error('Session cleanup error:', error);
+                        throw error;
+                    }
+                } else {
+                    res.json({ 
+                        success: true, 
+                        redirect: '/',
+                        message: 'Already logged out uwu' 
+                    });
+                }
             } catch (error) {
                 console.error('Logout error:', error);
-                // Still try to redirect even if there's an error
                 res.status(500).json({ 
                     success: false, 
                     redirect: '/',
@@ -417,27 +423,47 @@ this.app.get('/callback', this.isAuthenticated.bind(this), async (req, res) => {
         return this.discordAuthHandler.isAuthenticated(req, res, next);
     }
 
- // Replace the spotifyAuthMiddleware method
+ // spotifyAuthMiddleware method
  spotifyAuthMiddleware(req, res, next) {
-    // Add debug logging
+    // Add more detailed debug logging
     console.log('Spotify Auth Check:', {
         isAuthenticated: req.isAuthenticated(),
         hasUser: !!req.user,
         sessionID: req.sessionID,
-        path: req.path
+        path: req.path,
+        cookies: Object.keys(req.cookies)
     });
 
     if (!req.isAuthenticated() || !req.user) {
+        console.log('User not authenticated, redirecting to Discord auth');
         return res.redirect('/auth/discord');
     }
 
     const session = req.user.sessions.find(s => s.sessionId === req.sessionID);
+    
     console.log('Session found:', {
         hasSession: !!session,
         hasSpotify: !!session?.spotify,
-        isTokenValid: session?.spotify?.expiresAt ? new Date(session.spotify.expiresAt) > new Date() : false
+        hasSpotify: !!(session?.spotify?.accessToken),  // Only true if we have an actual token
+        isTokenValid: session?.spotify?.expiresAt ? new Date(session.spotify.expiresAt) > new Date() : false,
+        sessionId: req.sessionID
     });
 
+    // Check if session exists
+    if (!session) {
+        console.log('No valid session found, creating new session');
+        req.user.findOrCreateSession(req.sessionID, req.ip);
+        req.user.save().then(() => {
+            // Redirect to Spotify auth after creating session
+            req.session.returnTo = req.originalUrl;
+            return req.session.save(() => {
+                res.redirect('/auth/spotify');
+            });
+        });
+        return;
+    }
+
+    // Check if valid Spotify token exists
     if (session?.spotify?.accessToken && 
         new Date(session.spotify.expiresAt) > new Date()) {
         return next();

@@ -157,7 +157,7 @@ class MusicPlayer {
             btn.disabled = loading;
             btn.innerHTML = loading ? 
                 '<i class="fas fa-spinner fa-spin"></i>' :
-                '<i class="fas fa-play"></i> Play';
+                '<i class="fas fa-play"></i>';
         });
     }
 
@@ -336,7 +336,7 @@ class MusicPlayer {
             if (!queueContainer) return;
             
             // Use DocumentFragment for better performance
-            
+
             const fragment = document.createDocumentFragment();
             const container = document.createElement('div');
             fragment.appendChild(container);

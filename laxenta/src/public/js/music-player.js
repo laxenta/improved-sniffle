@@ -28,6 +28,12 @@ class MusicPlayer {
         this.isProcessing = false;
         this.queues = new Map(); // Store queues per guild
         this.activeGuildId = null;
+        
+        // New cache-related properties
+        this.queueCache = new Map();
+        this.queueFetchTimers = new Map();
+        this.queueCacheTTL = 2000; // 2 seconds cache time
+        
         this.setupEventListeners();
     }
 
@@ -83,7 +89,7 @@ class MusicPlayer {
         });
     }
 
-    async checkVoiceStatus() {
+    async checkVoiceStatus(showToast = true) {
         try {
             const response = await fetch('/api/voice/status');
             if (!response.ok) throw new Error('Failed to check voice status');
@@ -91,36 +97,38 @@ class MusicPlayer {
             const data = await response.json();
             
             if (!data.inChannel) {
-                // Show a more helpful toast message with instructions
-                const toast = document.createElement('div');
-                toast.className = 'toast error';
-                toast.innerHTML = `
-                    <div class="toast-content">
-                        <i class="fas fa-microphone-slash"></i>
-                        <div class="toast-message">
-                            <h4>Not in a Voice Channel</h4>
-                            <p>To play music:</p>
-                            <ol style="margin: 5px 0 0 20px; font-size: 0.9em;">
-                                <li>Join a Discord voice channel</li>
-                                <li>Make sure the bot is in your server</li>
-                                <li>Try playing again</li>
-                            </ol>
+                // Only show toast if requested
+                if (showToast) {
+                    const toast = document.createElement('div');
+                    toast.className = 'toast error';
+                    toast.innerHTML = `
+                        <div class="toast-content">
+                            <i class="fas fa-microphone-slash"></i>
+                            <div class="toast-message">
+                                <h4>Not in a Voice Channel</h4>
+                                <p>To play music:</p>
+                                <ol style="margin: 5px 0 0 20px; font-size: 0.9em;">
+                                    <li>Join a Discord voice channel</li>
+                                    <li>Make sure the bot is in your server</li>
+                                    <li>Try playing again</li>
+                                </ol>
+                            </div>
                         </div>
-                    </div>
-                `;
-
-                const container = document.getElementById('toast-container');
-                container.appendChild(toast);
-
-                // Remove toast after 6 seconds
-                setTimeout(() => {
-                    toast.classList.add('fade-out');
-                    setTimeout(() => toast.remove(), 300);
-                }, 6000);
-
+                    `;
+    
+                    const container = document.getElementById('toast-container');
+                    container.appendChild(toast);
+    
+                    // Remove toast after 6 seconds
+                    setTimeout(() => {
+                        toast.classList.add('fade-out');
+                        setTimeout(() => toast.remove(), 300);
+                    }, 6000);
+                }
+    
                 throw new Error('voice_not_found');
             }
-
+    
             return data;
         } catch (error) {
             if (error.message === 'voice_not_found') throw error;
@@ -154,15 +162,23 @@ class MusicPlayer {
     }
 
     async play(uri, guildId) {
+        // Don't allow multiple play operations at once
         if (this.isProcessing) return;
         
         try {
             this.setLoadingState(true);
-            const voiceStatus = await this.checkVoiceStatus();
+            
+            // Use Promise.all to check voice status and prepare play request in parallel
+            const [voiceStatus] = await Promise.all([
+                this.checkVoiceStatus(false) // Set to false to avoid blocking UI with toast
+            ]);
+            
+            // Use voice status guild ID if none provided
             guildId = guildId || voiceStatus.guildId;
             this.activeGuildId = guildId;
-
-            const response = await fetch('/api/music/play', {
+    
+            // Send play request - don't wait for queue update before proceeding
+            const playPromise = fetch('/api/music/play', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -170,21 +186,28 @@ class MusicPlayer {
                     guildId,
                     channelId: voiceStatus.channelId
                 })
+            }).then(res => {
+                if (!res.ok) return res.json().then(data => Promise.reject(new Error(data.error)));
+                return res.json();
             });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
-
-            // Update queue display
-            await this.updateQueueDisplay(guildId);
-
+    
+            // Start queue update in parallel but don't wait for it
+            const queueUpdatePromise = playPromise.then(() => this.updateQueueDisplay(guildId, true));
+            
+            // Only wait for the play response
+            const data = await playPromise;
+            
+            // Show toast immediately after play command succeeds
             this.showToast({
                 title: data.track.isPlaying ? 'Now Playing' : 'Added to Queue',
                 message: `${data.track.title} (Position: ${data.track.position})`,
                 type: 'success',
                 icon: data.track.isPlaying ? 'fa-play' : 'fa-list'
             });
-
+    
+            // Let queue update continue in background
+            queueUpdatePromise.catch(err => console.error('Background queue update failed:', err));
+            
             return data;
         } catch (error) {
             if (error.message !== 'voice_not_found') {
@@ -200,6 +223,7 @@ class MusicPlayer {
             this.setLoadingState(false);
         }
     }
+    
 
     async pause(guildId) {
         const response = await fetch(`/api/music/pause/${guildId}`, {
@@ -256,62 +280,123 @@ class MusicPlayer {
 
     async getQueueForGuild(guildId) {
         try {
-            const response = await fetch(`/api/music/queue/${guildId}`);
-            if (!response.ok) throw new Error('Failed to fetch queue');
+            const cachedData = this.queueCache?.get(guildId);
+            const now = Date.now();
             
-            const data = await response.json();
-            this.queues.set(guildId, data);
-            return data;
+            if (cachedData && (now - cachedData.timestamp < this.queueCacheTTL)) {
+                return cachedData.data;
+            }
+            
+            if (this.queueFetchTimers.has(guildId)) {
+                clearTimeout(this.queueFetchTimers.get(guildId));
+            }
+            
+            return new Promise((resolve, reject) => {
+                this.queueFetchTimers.set(guildId, setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/api/music/queue/${guildId}`);
+                        if (!response.ok) throw new Error('Failed to fetch queue');
+                        
+                        const data = await response.json();
+                        this.queueCache.set(guildId, {
+                            timestamp: Date.now(),
+                            data: data
+                        });
+                        this.queues.set(guildId, data);
+                        resolve(data);
+                    } catch (error) {
+                        console.error('Failed to fetch queue:', error);
+                        reject(error);
+                    } finally {
+                        this.queueFetchTimers.delete(guildId);
+                    }
+                }, 50));
+            });
         } catch (error) {
-            console.error('Failed to fetch queue:', error);
+            console.error('Failed to get queue:', error);
             throw error;
         }
     }
 
-    async updateQueueDisplay(guildId) {
+    async updateQueueDisplay(guildId, force = false) {
+        if (!guildId) return;
+        
         try {
-            if (!guildId) return;
+            // Use cached queue data if available and not forcing refresh
+            let queueData;
+            if (!force && this.queues.has(guildId)) {
+                queueData = this.queues.get(guildId);
+            } else {
+                queueData = await this.getQueueForGuild(guildId);
+            }
             
-            const queueData = await this.getQueueForGuild(guildId);
             if (!queueData) return;
-    
+            
             const queueContainer = document.getElementById('queue-container');
             if (!queueContainer) return;
-    
-            queueContainer.innerHTML = `
-                ${queueData.current ? `
-                    <div class="current-track">
-                        <h3>Now Playing</h3>
-                        <div class="track-item current">
-                            <img src="${queueData.current.thumbnail || '/images/default-song.png'}" alt="thumbnail">
-                            <div class="track-info">
-                                <h4>${escapeHtml(queueData.current.title || 'Unknown Title')}</h4>
-                                <p>${escapeHtml(queueData.current.author || 'Unknown Artist')}</p>
-                            </div>
-                            <span class="requester">Added by ${escapeHtml(queueData.current.requester?.username || 'Unknown')}</span>
-                            <span class="duration">${formatDuration(queueData.current.duration || 0)}</span>
+            
+            // Use DocumentFragment for better performance
+            
+            const fragment = document.createDocumentFragment();
+            const container = document.createElement('div');
+            fragment.appendChild(container);
+            
+            if (queueData.current) {
+                const currentTrackDiv = document.createElement('div');
+                currentTrackDiv.className = 'current-track';
+                currentTrackDiv.innerHTML = `
+                    <h3>Now Playing</h3>
+                    <div class="track-item current">
+                        <img src="${queueData.current.thumbnail || '/images/default-song.png'}" alt="thumbnail">
+                        <div class="track-info">
+                            <h4>${escapeHtml(queueData.current.title || 'Unknown Title')}</h4>
+                            <p>${escapeHtml(queueData.current.author || 'Unknown Artist')}</p>
                         </div>
+                        <span class="requester">Added by ${escapeHtml(queueData.current.requester?.username || 'Unknown')}</span>
+                        <span class="duration">${formatDuration(queueData.current.duration || 0)}</span>
                     </div>
-                ` : '<div class="no-track">No track playing</div>'}
+                `;
+                container.appendChild(currentTrackDiv);
+            } else {
+                const noTrackDiv = document.createElement('div');
+                noTrackDiv.className = 'no-track';
+                noTrackDiv.textContent = 'No track playing';
+                container.appendChild(noTrackDiv);
+            }
+            
+            if (queueData.queue && queueData.queue.length > 0) {
+                const queueListDiv = document.createElement('div');
+                queueListDiv.className = 'queue-list';
+                queueListDiv.innerHTML = `<h3>Queue (${queueData.queue.length} tracks)</h3>`;
                 
-                ${queueData.queue && queueData.queue.length > 0 ? `
-                    <div class="queue-list">
-                        <h3>Queue (${queueData.queue.length} tracks)</h3>
-                        ${queueData.queue.map((track, index) => `
-                            <div class="track-item">
-                                <span class="position">${index + 1}</span>
-                                <img src="${track.thumbnail || '/images/default-song.png'}" alt="thumbnail">
-                                <div class="track-info">
-                                    <h4>${escapeHtml(track.title || 'Unknown Title')}</h4>
-                                    <p>${escapeHtml(track.author || 'Unknown Artist')}</p>
-                                </div>
-                                <span class="requester">Added by ${escapeHtml(track.requester?.username || 'Unknown')}</span>
-                                <span class="duration">${formatDuration(track.duration || 0)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : '<div class="empty-queue">Queue is empty</div>'}
-            `;
+                queueData.queue.forEach((track, index) => {
+                    const trackDiv = document.createElement('div');
+                    trackDiv.className = 'track-item';
+                    trackDiv.innerHTML = `
+                        <span class="position">${index + 1}</span>
+                        <img src="${track.thumbnail || '/images/default-song.png'}" alt="thumbnail">
+                        <div class="track-info">
+                            <h4>${escapeHtml(track.title || 'Unknown Title')}</h4>
+                            <p>${escapeHtml(track.author || 'Unknown Artist')}</p>
+                        </div>
+                        <span class="requester">Added by ${escapeHtml(track.requester?.username || 'Unknown')}</span>
+                        <span class="duration">${formatDuration(track.duration || 0)}</span>
+                    `;
+                    queueListDiv.appendChild(trackDiv);
+                });
+                
+                container.appendChild(queueListDiv);
+            } else {
+                const emptyQueueDiv = document.createElement('div');
+                emptyQueueDiv.className = 'empty-queue';
+                emptyQueueDiv.textContent = 'Queue is empty';
+                container.appendChild(emptyQueueDiv);
+            }
+            
+            // Update DOM once with all changes
+            queueContainer.innerHTML = '';
+            queueContainer.appendChild(fragment);
+            
         } catch (error) {
             console.error('Failed to update queue display:', error);
             const queueContainer = document.getElementById('queue-container');
@@ -325,7 +410,6 @@ class MusicPlayer {
             }
         }
     }
-
     async updateLatency() {
         try {
             const start = Date.now();

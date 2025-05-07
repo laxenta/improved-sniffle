@@ -101,7 +101,7 @@ class PlaylistManager {
                     <h4>${escapeHtml(item.track.name)}</h4>
                     <p>${escapeHtml(artistNames)}</p>
                     <button onclick="window.musicPlayer.play('${item.track.uri}')" class="play-btn">
-                        <i class="fas fa-play"></i> Play
+                        <i class="fas fa-play"></i>
                     </button>
                 </div>
             `;

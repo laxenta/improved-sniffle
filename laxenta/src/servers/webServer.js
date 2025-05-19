@@ -14,7 +14,10 @@ class WebServer {
     constructor(client) {
         this.client = client;
         this.app = express();
+        this.userVoiceMap = new Map(); // Add this line
+        this.setupVoiceStateTracking(); // Add this line
 
+ 
         // Initialize auth handlers
         this.spotifyAuthHandler = new SpotifyAuthManager({
             spotify: {
@@ -62,6 +65,56 @@ class WebServer {
     }
 
 
+
+    setupVoiceStateTracking() {
+    // Track initial voice states when bot is ready
+    this.client.on('ready', () => {
+        // Clear existing voice map
+        this.userVoiceMap.clear();
+        
+        // Get all guild members' voice states
+        this.client.guilds.cache.forEach(guild => {
+            guild.members.cache.forEach(member => {
+                if (member.voice.channelId) {
+                    this.userVoiceMap.set(member.user.id, {
+                        guildId: guild.id,
+                        channelId: member.voice.channelId,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        });
+    });
+
+    // Track voice state changes
+    this.client.on('voiceStateUpdate', (oldState, newState) => {
+        const userId = newState.member.user.id;
+        
+        if (newState.channelId) {
+            // User joined or moved to a voice channel
+            this.userVoiceMap.set(userId, {
+                guildId: newState.guild.id,
+                channelId: newState.channelId,
+                timestamp: Date.now(),
+                guildName: newState.guild.name,
+                channelName: newState.channel?.name
+            });
+        } else {
+            // User left voice channel
+            this.userVoiceMap.delete(userId);
+        }
+        
+        // Debug log
+        console.log('Voice State Update:', {
+            userId,
+            inChannel: !!newState.channelId,
+            guildId: newState.guild.id,
+            channelId: newState.channelId,
+            mapSize: this.userVoiceMap.size
+        });
+    });
+}
+//above is new codeWEEEEEEEEEEEEEEEEEEEE 
     setupMiddleware() {
         // 1. Basic middleware
         this.app.use(express.json());
@@ -642,22 +695,6 @@ async handleDiscordAuth(req, accessToken, refreshToken, profile, done) {
     const ensureFreshSpotifyToken = this.spotifyAuthHandler.ensureFreshToken.bind(this.spotifyAuthHandler);
     const boundIsAuthenticated = this.isAuthenticated.bind(this);
 
-    // Routes with bound middleware
-    // this.app.get('/api/spotify/liked-songs', 
-    //     boundIsAuthenticated,
-    //     ensureFreshSpotifyToken,
-    //     async (req, res) => {
-    //         try {
-    //             const spotifyApi = getSpotifyClientForUser(req);
-    //             const data = await spotifyApi.getMySavedTracks({ limit: 50 });
-    //             res.json(data.body.items);
-    //         } catch (error) {
-    //             console.error('Failed to fetch liked songs:', error);
-    //             res.status(500).json({ error: 'Failed to fetch liked songs' });
-    //         }
-    //     }
-    // );
-
     // Update the liked songs endpoint
 this.app.get('/api/spotify/liked-songs', 
     boundIsAuthenticated,
@@ -718,26 +755,41 @@ this.app.get('/api/ping', (req, res) => {
 });
 
 // Voice Channel Status
-this.app.get('/api/voice/status', this.isAuthenticated.bind(this), async (req, res) => {
+this.app.get('/api/voice/status', this.isAuthenticated.bind(this), (req, res) => {
     try {
-        const user = await this.client.users.fetch(req.user.discordId);
-        let voiceStatus = { inChannel: false };
+        const userId = req.user.discordId;
+        let voiceState = null;
 
+        // Directly check voice state across all guilds
         for (const guild of this.client.guilds.cache.values()) {
-            const member = await guild.members.fetch(user.id).catch(() => null);
-            if (member?.voice.channel) {
-                voiceStatus = {
+            const member = guild.members.cache.get(userId);
+            if (member?.voice.channelId) {
+                voiceState = {
                     inChannel: true,
                     guildId: guild.id,
-                    channelId: member.voice.channel.id
+                    guildName: guild.name,
+                    channelId: member.voice.channelId,
+                    channelName: member.voice.channel?.name,
+                    timestamp: Date.now()
                 };
                 break;
             }
         }
 
-        res.json(voiceStatus);
+        // Debug info
+        console.log('Direct Voice Check:', {
+            userId,
+            foundVoiceState: !!voiceState,
+            guildsChecked: this.client.guilds.cache.size
+        });
+
+        res.json(voiceState || {
+            inChannel: false,
+            timestamp: Date.now()
+        });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to get voice status', code: 500 });
+        console.error('Voice status error:', error);
+        res.status(500).json({ error: 'Failed to get voice status' });
     }
 });
 

@@ -24,32 +24,43 @@
         <div class="progress-filled"></div>
     </div>
 
-    <header>
-        <nav>
-            <div class="logo">
-                <img src="<%= botAvatar || '/default-avatar.png' %>" alt="<%= botName %>">
-                <span><%= botName %></span>
-            </div>
-            <% if (user) { %>
-                <div class="user-info">
-                    <img src="https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHM0OYfiFeMI2p9MWie0CvL99U4GA1gf6_kayTt_kBblFwHwo8BW8JXlqfnYxKPmmBevsdZpJiIhrXJKvOSYipsaHqFIbCP6s5rOtPA59rEWG0TDcTxZjqTOH7KyNDpp3SdjDoloGHqOiM0jglAUqKA4-&format=source" alt="<%= user.username %>">         
-                    <span><%= user.username %></span>
+    <!-- Update the nav section -->
+<nav>
+    <div class="nav-container">
+        <!-- Logo and Home -->
+        <div class="nav-left">
+            <img src="<%= botAvatar || '/default-avatar.png' %>" alt="<%= botName %>" class="nav-avatar">
+            <a href="/" class="nav-home">
+                <span class="nav-title"><%= botName %></span>
+            </a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" id="mobile-menu-btn">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- User Info -->
+        <% if (user) { %>
+            <div class="nav-user">
+                <img src="https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHM0OYfiFeMI2p9MWie0CvL99U4GA1gf6_kayTt_kBblFwHwo8BW8JXlqfnYxKPmmBevsdZpJiIhrXJKvOSYipsaHqFIbCP6s5rOtPA59rEWG0TDcTxZjqTOH7KyNDpp3SdjDoloGHqOiM0jglAUqKA4-&format=source" 
+                     alt="<%= user.username %>" 
+                     class="user-avatar">
+                <div class="user-dropdown">
+                    <span class="username"><%= user.username %></span>
                     <% if (hasSpotify) { %>
-                        <span class="spotify-connected">
-                            <i class="fab fa-spotify"></i> Connected :3
+                        <span class="spotify-badge">
+                            <i class="fab fa-spotify"></i>
                         </span>
                     <% } %>
-                    <button 
-                        onclick="window.authManager.logout()" 
-                        class="logout-btn"
-                        type="button"
-                    >
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                    <button onclick="window.authManager.logout()" class="logout-btn">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
-            <% } %>
-        </nav>
-    </header>
+            </div>
+        <% } %>
+    </div>
+</nav>
 
     <main>
         <% if (!hasSpotify) { %>
@@ -201,6 +212,7 @@ body {
     background-color: var(--background);
     color: var(--text);
     line-height: 1.6;
+    padding-top: 0; /* Remove any top padding if present */
 }
 
 header {
@@ -213,59 +225,155 @@ header {
 }
 
 nav {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    background: var(--background);
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 1000;
+    padding: 0.5rem 1rem;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
+    background: var(--background);
+    padding: 0.5rem;
+    border-radius: 8px;
 }
 
-.logo {
+.nav-left {
     display: flex;
     align-items: center;
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: white;
+    gap: 0.5rem;
 }
 
-.logo img {
-    height: 40px;
-    width: 40px;
+.nav-avatar {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    margin-right: 10px;
 }
 
-.user-info {
+.nav-home {
+    text-decoration: none;
+    color: var(--text);
+}
+
+.nav-title {
+    font-weight: 600;
+    font-size: 1rem;
+    background: linear-gradient(to right, #7289da, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.nav-user {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
 }
 
-.user-info img {
-    height: 40px;
-    width: 40px;
+.user-avatar {
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    margin-right: 10px;
 }
 
-.spotify-connected {
-    background-color: var (--secondary);
-    color: white;
+.user-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 20px;
-    padding: 0.25rem 0.75rem;
-    margin-left: 10px;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
 }
 
-.spotify-connected i {
-    margin-right: 5px;
+.username {
+    font-size: 0.875rem;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spotify-badge {
+    color: #1DB954;
+    font-size: 0.875rem;
+}
+
+.logout-btn {
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.logout-btn:hover {
+    opacity: 1;
+    background: transparent;
+}
+
+.mobile-menu-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 1.25rem;
+    padding: 0.5rem;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .nav-container {
+        padding: 0.25rem;
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+
+    .username {
+        display: none;
+    }
+
+    .user-dropdown {
+        background: transparent;
+        padding: 0;
+    }
+    
+    .nav-title {
+        font-size: 0.9rem;
+    }
+}
+
+body {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+img {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
 }
 
 main {
     max-width: 1200px;
-    margin: 2rem auto;
+    margin: 1rem auto;
     padding: 0 1rem;
+    position: relative;
+    z-index: 1;
+    background: var(--background);
 }
 
 .auth-prompt {
@@ -313,7 +421,7 @@ main {
 }
 
 section {
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
 }
 
 section h2 {
@@ -694,13 +802,13 @@ footer {
     width: 100%;
     height: 100%;
     z-index: -2;
-    background: linear-gradient(-45deg, #23272A, #2C2F33, #7289DA, #99AAB5);
+    background: linear-gradient(-45deg, #23272A, #2C2F33, #000000, #aba3a3);
     background-size: 400% 400%;
     animation: gradient 15s ease infinite;
     opacity: 0.8;
 }
 
-.animated-particles {
+.animated-particles {   
     position: fixed;
     top: 0;
     left: 0;
@@ -797,7 +905,7 @@ footer {
     }
 }
 
-/* Playlist Expansion */
+/* Playlist Expansion ;3 */
 .playlist-tracks {
     max-height: 0;
     overflow: hidden;
@@ -1598,7 +1706,7 @@ function loadLikedSongs() {
         // Auto dismiss after 5 seconds
         const dismissTimeout = setTimeout(() => {
             dismissToast(toast);
-        }, 5000);
+        }, 10000);
         
         // Close button
         toast.querySelector('.toast-close').addEventListener('click', () => {
@@ -1825,6 +1933,7 @@ function loadLikedSongs() {
             return new Response(chunksAll);
         },
 
+
         showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -1860,6 +1969,17 @@ function loadLikedSongs() {
         e.preventDefault();
     }
 });
+
+//uwu
+document.addEventListener('DOMContentLoaded', () => {
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', () => {
+            // Add your mobile menu logic here
+            console.log('Mobile menu clicked');
+        });
+    }
+});
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
         const createParticles = () => {
@@ -1886,109 +2006,7 @@ function loadLikedSongs() {
         setInterval(() => window.musicPlayer.updateLatency(), 5000);
     });
 
-    // Add styles for the new components
-    const style = document.createElement('style');
-    style.textContent = `
-        .playlist-tracks {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.5s var(--animation-curve);
-        }
 
-        .track-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto auto;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem;
-            margin: 0.5rem 0;
-            background: var(--glass-background);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            transition: transform 0.2s ease;
-        }
-
-        .track-item:hover {
-            transform: translateX(5px);
-            border-color: var(--primary);
-        }
-
-        .track-item img {
-            width: 40px;
-            height: 40px;
-            border-radius: 4px;
-        }
-
-        .track-info {
-            overflow: hidden;
-        }
-
-        .track-info h4 {
-            margin: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .track-info p {
-            margin: 0;
-            font-size: 0.9rem;
-            color: var(--text);
-            opacity: 0.7;
-        }
-
-        .track-duration {
-            font-size: 0.9rem;
-            color: var(--text);
-            opacity: 0.7;
-        }
-
-        .play-btn {
-            padding: 0.5rem;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .loading-spinner {
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
-            padding: 1rem;
-        }
-
-        .page-btn {
-            background: var(--glass-background);
-            border: 1px solid var(--glass-border);
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .page-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .page-btn:not(:disabled):hover {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-    `;
-
-    document.head.appendChild(style);
 </script>
 </body>
 </html>

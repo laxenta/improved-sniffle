@@ -1003,6 +1003,8 @@ this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req,
         });
     }
 });
+
+
 // playyy in dc
 this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, res) => {
     try {
@@ -1104,6 +1106,23 @@ this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, re
             details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
+});
+
+this.app.get('/api/commands', (req, res) => {
+    const slashCommands = Array.from(req.client.slashCommands.values()).map(cmd => ({
+        name: cmd.data.name,
+        description: cmd.data.description,
+        type: 'slash'
+    }));
+
+    const prefixCommands = Array.from(req.client.commands.values()).map(cmd => ({
+        name: cmd.name,
+        description: cmd.description,
+        type: 'prefix',
+        aliases: cmd.aliases
+    }));
+
+    res.json([...slashCommands, ...prefixCommands]);
 });
     }
 

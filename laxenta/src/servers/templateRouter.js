@@ -5,34 +5,56 @@ const { loadAllCommands } = require('../handlers/commandHandler'); // Fix import
 
 // Create standard template data for any route
 function createTemplateData(req, client, commands = []) {
-    const isAuth = req.isAuthenticated();
-    const currentSession = isAuth && req.user ? 
-        req.user.sessions.find(s => s.sessionId === req.sessionID) : null;
-    const hasSpotify = currentSession && currentSession.spotify;
-    
+    // Add null checks and default values
+    const slashCommands = client?.slashCommands ? Array.from(client.slashCommands.values()).map(cmd => ({
+        name: cmd.data.name,
+        description: cmd.data.description,
+        type: 'slash',
+        usage: `/${cmd.data.name}`,
+        category: cmd.category || 'General'
+    })) : [];
+
+    const prefixCommands = client?.commands ? Array.from(client.commands.values()).map(cmd => ({
+        name: cmd.name,
+        description: cmd.description || 'No description available',
+        type: 'prefix',
+        usage: `!${cmd.name}`,
+        aliases: cmd.aliases || [],
+        category: cmd.category || 'General'
+    })) : [];
+
+    // Check if user is authenticated and has Spotify
+    const isAuth = req.isAuthenticated?.() || false;
+    const currentSession = isAuth && req.user?.sessions?.find(s => s.sessionId === req.sessionID);
+    const hasSpotify = !!(currentSession?.spotify?.accessToken);
+
+    // Combine both command types
+    const allCommands = [...slashCommands, ...prefixCommands];
+
     return {
-        botName: client.user?.username || 'Discord Bot',
+        botName: client?.user?.username || 'Discord Bot',
         user: req.user,
         isAuthenticated: isAuth,
-        hasSpotify: !!hasSpotify,
+        hasSpotify: hasSpotify,
         spotifyProfile: hasSpotify ? currentSession.spotify.profile : null,
-        avatar: client.user?.displayAvatarURL({ size: 1024 }),
+        avatar: client?.user?.displayAvatarURL?.({ size: 1024 }),
         avatarURL: 'https://static0.anpoimages.com/wordpress/wp-content/uploads/2024/05/discord-3-ap24-hero.jpg',
         clientId: process.env.CLIENT_ID,
         clientSecret: process.env.CLIENT_SECRET,
         SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
         SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
-        commands: commands,
+        commands: allCommands,
         stats: {
-            online: client.ws.ping < 100,
-            servers: client.guilds.cache.size,
-            users: client.users.cache.size,
+            online: client?.ws?.ping < 100 || false,
+            servers: client?.guilds?.cache?.size || 0,
+            users: client?.users?.cache?.size || 0,
             uptime: process.uptime(),
-            activePlayers: client.manager?.players?.size || 0,
-            totalTracks: client.manager?.players?.reduce((acc, player) => 
-                acc + (player.queue?.size || 0), 0) || 0
+            activePlayers: client?.manager?.players?.size || 0,
+            totalTracks: client?.manager?.players?.reduce((acc, player) => 
+                acc + (player.queue?.size || 0), 0) || 0,
+            ping: client?.ws?.ping || 0
         },
-        botAvatar: 'https://images-ext-1.discordapp.net/external/Vj5XAuCV3kpUCA121vpFLT_8Xo-EonGppjyCNaCd6Pw/%3Fsize%3D1024/https/cdn.discordapp.com/avatars/1107155830274523136/e84dd5b59ab14bcf7685a582db0a920e.webp?format=webp&width=374&height=374',
+        botAvatar: client?.user?.displayAvatarURL?.({ size: 1024 }) || 'https://images-ext-1.discordapp.net/external/Vj5XAuCV3kpUCA121vpFLT_8Xo-EonGppjyCNaCd6Pw/%3Fsize%3D1024/https/cdn.discordapp.com/avatars/1107155830274523136/e84dd5b59ab14bcf7685a582db0a920e.webp?format=webp&width=374&height=374',
     };
 }
 

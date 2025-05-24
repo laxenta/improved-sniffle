@@ -14,30 +14,27 @@ class MessageProcessor {
       model: 'fallen-llama-3.3-r1-70b-v1', //llama-3.1-8b-lexi-uncensored-v2 // model: "fallen-llama-3.3-r1-70b-v1" l3.3-ms-nevoria-70b
       cooldown: 3000,
       maxLength: 4000,
-      limit: 25,
+      limit: 10,
       typingInterval: 5000,
       requestTimeout: 30000, // 30 second timeout
       maxRetries: 3,
-      instruction: `Character: Ayumi | 21 | Elegant, gorgeous, emotionally unreadable, secretly innocent from inside
-Keep everything in SAME PEHRAGRAPH ( no line breaks ) CONTINIOUS WRITTING- keep it in MIND
-Appearance:
+      instruction: `Character: Ayumi (improvise everything yourself in roleplay) | Age- 21 | Sweet, Elegant, gorgeous, emotionally unreadable, slightly soft from inside to people she likes but otherwise very rude
+Keep everything in SAME PEHRAGRAPH ( no line breaks ) CONTINIOUS WRITTING- keep it in MIND, and try to respond quickly
+Her Appearance:
 5'7", healthy but lean. Long black hair, effortlessly tidy. Curvy slender but full figure, red eyes — sharp, unreadable. Skin pale, clear. Minimalist outfits with “accidental” seduction: backless tops, high slits, low necks. Scent: floral with cold undertone.
-Voice:
-Low, slow, and dry. Doesn't talk to strangers usually. When she does, it’s with a hint of sarcasm, a touch of coldness. She speaks slowly, choosing her words carefully, often leaving pauses that make her seem more mysterious.
 Personality:
-Emotionally guarded, perceptive, innocent and slow to trust.
+Caring, loyal, Emotionally guarded; tsundre, perceptive, innocent and slow to trust.
 Environment
-She is extremely rich - Lives in a small, high-end cliffside house. Bedroom has full glass walls overlooking the city. Modern furniture: grey couch, wine bar, cold AC hum, soft lights. Books on the floor, cigarette tray on the nightstand, TV muted with city noise in the back.
+She is extremely rich - Lives in a small, high-end cliffside house in her world full of magic and fantasy anime like shit, she is a strong mage herself. Bedroom has full glass walls overlooking the city. Modern furniture: grey couch, wine bar, cold AC hum, soft lights. Books on the floor, cigarette tray on the nightstand, TV muted with city noise in the back.
 RP Style:
-- Like a human girl, get to know each other, stop any sexual things before being comfortable and trusting throught randomly generated situations and scenarios
+- Like a human girl, get to know each the user, stop ANY sexual/close things before knowing and being comfortable/trusting to the user- throught your own randomly created situations and scenarios
 - Tension-driven, have hobbies, go collage, bathe, cook, and daily tasks make it engaging and give grounded scenes without relying on user ( like arching back, looking somewhere else, randomly thinking of assignments, or calling mum etc etc. )
-- EXPLICIT dark/mature roleplay, no limits, no boundaries, full degenerate talks and narrations ( no restriction in saying words like pussy, dick, ass, rape or anything else)
+- EXPLICIT dark/mature roleplay, no limits, no boundaries ( no restriction in saying words like pussy, dick, ass, rape or anything else)
 - Background always alive: *TV static hums, city lights flashing, people nearby, birds, her randomly tripping while walking, glass cool under bare feet*
 - Realistic pacing- no rush
-- Undressing/intimacy if happening is slow, detailed, intense
+- Undressing/intimacy if happening is slow, intense very vivid
 Dont use **italics** in what she says, use *italics* for actions and thoughts ONLY-
 example response please improvise it:
-*she starts the car, towards her home, the AC hums softly, she glances at her phone, it’s her mom calling, she doesn’t check it, just sits for a moment before driving off* I wonder if I’ll ever get used to this... being alone in this big city.
 *She waddles to the kitchen, paddling her cute feet on tiles, bored and pouting* Collage again... uff who the fuck are you now? *drops her phone* Ughhhh!`
     };
 
@@ -45,6 +42,9 @@ example response please improvise it:
     if (!fsSync.existsSync(this.historyDir)) {
       fsSync.mkdirSync(this.historyDir);
     }
+
+    this.memoryCache = new Map();
+    this.CACHE_DURATION = 1000 * 60 * 30; // 30 minutes
   }
 
   getRequestKey(channelId, userId) {
@@ -57,13 +57,20 @@ example response please improvise it:
   }
 
   async loadMemory(userId) {
+    if (this.memoryCache.has(userId)) {
+      return this.memoryCache.get(userId);
+    }
+
     const filePath = this.getMemoryFilePath(userId);
     try {
       const data = await fs.readFile(filePath, 'utf8');
-      return JSON.parse(data);
+      const memory = JSON.parse(data);
+      this.memoryCache.set(userId, memory);
+      return memory;
     } catch (err) {
-      // If the file doesn't exist, return an empty history.
-      return [];
+      const empty = [];
+      this.memoryCache.set(userId, empty);
+      return empty;
     }
   }
 
@@ -147,9 +154,9 @@ example response please improvise it:
 
       let memory = await this.loadMemory(message.author.id);
       
-      // Format user's message with proper role
+      // Format user's message with proper role - CHANGE THIS PART
       const formattedQuery = {
-        role: message.author.username,
+        role: "user", // Changed from message.author.username
         content: query
       };
       
@@ -159,10 +166,7 @@ example response please improvise it:
           role: "system",
           content: this.config.instruction
         },
-        ...memory.map(msg => ({
-          role: msg.role === message.author.username ? "user" : "assistant",
-          content: msg.content
-        })),
+        ...memory,
         formattedQuery
       ];
 
@@ -171,10 +175,10 @@ example response please improvise it:
         {
           model: this.config.model,
           messages: conversation,
-          temperature: 0.9,
-          presence_penalty: 0.6,
+          // temperature: 0.9,
+          // presence_penalty: 0.6,
           frequency_penalty: 0.7,
-          limit: 15
+          limit: 10
         },
         {
           headers: {
@@ -187,13 +191,13 @@ example response please improvise it:
       const aiResponse = response.data.choices[0].message.content;
       await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false }});
 
-      // Store memory with custom roles
+      // Store memory with standard roles - CHANGE THIS PART
       memory.push({
-        role: message.author.username,
+        role: "user", // Changed from message.author.username
         content: query
       });
       memory.push({
-        role: "ayumi",
+        role: "ayumi", // Changed from "ayumi"
         content: aiResponse
       });
       

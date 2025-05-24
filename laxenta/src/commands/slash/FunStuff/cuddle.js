@@ -30,7 +30,7 @@ module.exports = {
       if (!cuddleGif) {
         return interaction.reply({
           content: 'Failed to cuddle. ;c Try again later!',
-          flags: MessageFlags.Ephemeral
+          ephemeral: true
         });
       }
 
@@ -50,7 +50,8 @@ module.exports = {
       return interaction.reply({
         content: 'There was an error executing that command. Please try again later!',
         // Use ephemeral if you want the error to be private:
-        flags: MessageFlags.Ephemeral
+
+        ephemeral: true
       });
     }
   }

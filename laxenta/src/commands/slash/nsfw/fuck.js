@@ -59,7 +59,21 @@ module.exports = {
     }
 
     try {
-      const nsfwGif = await hmtai.nsfw.hentai(); // Swap with hmtai.nsfw.blowjob() or .creampie() for spicier vibes
+      // Add error handling for the initial API call
+      let nsfwGif;
+      try {
+        nsfwGif = await hmtai.nsfw.hentai();
+        if (!nsfwGif || !nsfwGif.startsWith('http')) {
+          throw new Error('Invalid image URL received');
+        }
+      } catch (apiError) {
+        // Fallback to a default NSFW image URL or show error
+        console.error(`API Error: ${apiError.message}`);
+        return interaction.reply({
+          content: 'The NSFW service is currently unavailable. Please try again later.',
+          ephemeral: true
+        });
+      }
 
       const embed = new EmbedBuilder()
         .setTitle('but~.. ah *Things are heating up..* 🔥')
@@ -85,18 +99,35 @@ module.exports = {
       });
 
       collector.on('collect', async i => {
-        let actionGif, responseTitle, responseDesc;
+        let actionGif;
+        try {
+          if (i.customId === 'kiss_back') {
+            actionGif = await hmtai.sfw.kiss();
+          } else if (i.customId === 'blowjob_back') {
+            actionGif = await hmtai.nsfw.blowjob();
+          } else {
+            actionGif = await hmtai.sfw.hug();
+          }
 
+          if (!actionGif || !actionGif.startsWith('http')) {
+            throw new Error('Invalid response image URL');
+          }
+        } catch (apiError) {
+          console.error(`API Error during interaction: ${apiError.message}`);
+          return i.reply({
+            content: 'Sorry, failed to load the response image. Please try again.',
+            ephemeral: true
+          });
+        }
+
+        let responseTitle, responseDesc;
         if (i.customId === 'kiss_back') {
-          actionGif = await hmtai.sfw.kiss();
           responseTitle = 'nngh.. nom~';
           responseDesc = `${targetUser.username} kisses ${interaction.user.username}.`;
         } else if (i.customId === 'blowjob_back') {
-          actionGif = await hmtai.nsfw.blowjob();
           responseTitle = 'Wait.. W-what are you doing?! *slurps* dam-';
           responseDesc = `${targetUser.username}... goes down on ${interaction.user.username}.`;
         } else {
-          actionGif = await hmtai.sfw.hug();
           responseTitle = 'oh god... it was.. Ahh~.. *pulls out*';
           responseDesc = `${targetUser.username} decides a good cuddling is best after this.. and we should stop...`;
         }

@@ -50,7 +50,7 @@ module.exports = {
     try {
       // Defer the reply and then update with a funny loading message
       await interaction.deferReply();
-      await interaction.editReply("counting the user/'s braincells... 🧠🤸‍♂️");
+      await interaction.editReply("counting incels .; 3.. ");
 
       const reply = await callLLM(systemInstruction, userMessage);
       await interaction.editReply(reply || "Couldn't determine brain cells count. Looks like they all took a coffee break!");

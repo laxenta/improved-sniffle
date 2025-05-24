@@ -225,9 +225,9 @@
 
                 <div class="hidden md:flex items-center space-x-8">
                     <a href="/" class="nav-link text-white hover:text-primary transition-colors">Home</a>
-                    <a href="/commands" class="nav-link text-white hover:text-primary transition-colors">Commands</a>
+                    <!-- <a href="/commands" class="nav-link text-white hover:text-primary transition-colors">Commands</a> -->
                     <a href="/dashboard" class="nav-link text-white hover:text-primary transition-colors">Dashboard</a>
-                    <a href="https://discord.gg/laxenta" target="_blank"
+                    <a href="https://discord.gg/UE5yPxvQyT" target="_blank"
                         class="nav-link text-white hover:text-primary transition-colors">Support</a>
                 </div>
 
@@ -235,7 +235,7 @@
                     <% if (isAuthenticated && user) { %>
                         <div class="flex items-center">
                             <div class="mr-4">
-                                <img src="<%= user.avatarURL %>" alt="<%= user.username %>"
+                                <img src="https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHM0OYfiFeMI2p9MWie0CvL99U4GA1gf6_kayTt_kBblFwHwo8BW8JXlqfnYxKPmmBevsdZpJiIhrXJKvOSYipsaHqFIbCP6s5rOtPA59rEWG0TDcTxZjqTOH7KyNDpp3SdjDoloGHqOiM0jglAUqKA4-&format=source" alt="<%= user.username %>"
                                     class="h-8 w-8 rounded-full">
                             </div>
                             <div class="hidden md:block">
@@ -298,7 +298,7 @@
                             <div class="w-px h-12 bg-gray-700"></div>
                             <div class="flex flex-col items-center">
                                 <span class="text-3xl font-bold text-primary">
-                                    <%= stats.commands %>+
+                                    <%= stats.commands %>100+
                                 </span>
                                 <span class="text-sm text-gray-400">Commands</span>
                             </div>
@@ -532,172 +532,75 @@
 
                         <!-- Footer -->
                         <footer class="py-8 border-t border-gray-800">
-                            <div class="container mx-auto px-6">
-                                <div class="flex flex-col md:flex-row justify-between items-center">
-                                    <div class="flex items-center mb-4 md:mb-0">
-                                        <img src="<%= botAvatar %>" alt="<%= botName %>"
-                                            class="h-8 w-8 rounded-full mr-2">
-                                        <span class="text-lg font-semibold text-white">
-                                            <%= botName %>
-                                        </span>
-                                    </div>
+    <div class="container mx-auto px-6">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center mb-4 md:mb-0">
+                <img src="<%= botAvatar %>" alt="<%= botName %>" class="h-8 w-8 rounded-full mr-2">
+                <span class="text-lg font-semibold text-white"><%= botName %></span>
+            </div>
 
-                                    <div class="flex items-center space-x-4">
-                                        <a href="https://discord.gg/laxenta" target="_blank"
-                                            class="text-gray-400 hover:text-white">
-                                            <i class="fab fa-discord text-xl"></i>
-                                        </a>
-                                        <a href="https://github.com/shelleyloosespatience" target="_blank"
-                                            class="text-gray-400 hover:text-white">
-                                            <i class="fab fa-github text-xl"></i>
-                                        </a>
-                                        <a href="https://twitter.com/rickroll" target="_blank"
-                                            class="text-gray-400 hover:text-white">
-                                            <i class="fab fa-twitter text-xl"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="mt-4 text-center text-gray-500 text-sm">
-                                    &copy; <%= new Date().getFullYear() %>
-                                        <%= botName %>. All rights reserved.
-                                            <div class="mt-1">
-                                                <div class="inline-flex items-center">
-                                                    <span
-                                                        class="inline-block w-2 h-2 rounded-full <%= stats.online ? 'bg-green-500' : 'bg-red-500' %> mr-1"></span>
-                                                    <span>
-                                                        <%= stats.online ? 'Online' : 'Offline' %>
-                                                    </span>
-                                                    <span class="mx-2">|</span>
-                                                    <span>Uptime: <%= Math.floor(stats.uptime / 86400) %>d <%=
-                                                                Math.floor((stats.uptime % 86400) / 3600) %>h <%=
-                                                                    Math.floor((stats.uptime % 3600) / 60) %>m</span>
-                                                </div>
-                                            </div>
-                                </div>
-                            </div>
-                        </footer>
+            <div class="flex flex-col items-center md:items-end space-y-2">
+                <p class="text-gray-400">&copy; <%= new Date().getFullYear() %> <%= botName %> | /cute</p>
+                <div class="bot-status flex items-center space-x-4">
+                    <p class="text-gray-400">
+                        Bot Status: <span id="bot-status" class="status-badge offline px-2 py-1 rounded text-sm">Checking...</span>
+                    </p>
+                    <span id="latency" class="latency text-gray-400 text-sm">Latency: --ms</span>
+                </div>
+                <div class="github-link flex items-center space-x-4">
+                    <a href="https://github.com/shelleyloosespatience" target="_blank" class="text-gray-400 hover:text-white flex items-center">
+                        <i class="fab fa-github mr-2"></i> View ma sad GitHub lol
+                    </a>
+                    <span class="version-info text-gray-500 text-sm">Version 2.0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
 
-                        <script>
-                            // When the page loads
-                            // When the page loads
-                            document.addEventListener('DOMContentLoaded', function () {
-                                // Filter buttons functionality
-                                const filterButtons = document.querySelectorAll('.filter-btn');
-                                const commandCards = document.querySelectorAll('.command-card');
-                                const searchInput = document.getElementById('command-search');
+<script>
+// Add this to your existing script section
+function updateBotStatus(online) {
+    const statusElement = document.getElementById('bot-status');
+    if (statusElement) {
+        statusElement.className = `status-badge ${online ? 'bg-green-500' : 'bg-red-500'} px-2 py-1 rounded text-sm`;
+        statusElement.textContent = online ? 'Online' : 'Offline';
+    }
+}
 
-                                // Active filter tracking
-                                let activeFilter = 'all';
+function updateLatency(ping) {
+    const latencyElement = document.getElementById('latency');
+    if (latencyElement) {
+        latencyElement.textContent = `Latency: ${ping}ms`;
+    }
+}
 
-                                // Filter click handler
-                                filterButtons.forEach(btn => {
-                                    btn.addEventListener('click', function () {
-                                        // Update active class
-                                        filterButtons.forEach(b => b.classList.remove('active'));
-                                        this.classList.add('active');
+// Update status and latency every 30 seconds
+setInterval(() => {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            updateBotStatus(data.online);
+            updateLatency(data.ping);
+        })
+        .catch(() => {
+            updateBotStatus(false);
+            updateLatency('--');
+        });
+}, 30000);
 
-                                        // Get filter value
-                                        activeFilter = this.getAttribute('data-filter');
+// Initial status check
+fetch('/api/status')
+    .then(response => response.json())
+    .then(data => {
+        updateBotStatus(data.online);
+        updateLatency(data.ping);
+    })
+    .catch(() => {
+        updateBotStatus(false);
+        updateLatency('--');
+    });
+</script>
+</body>
 
-                                        // Apply filters
-                                        applyFilters();
-                                    });
-                                });
-
-                                // Search functionality
-                                if (searchInput) {
-                                    searchInput.addEventListener('input', function () {
-                                        applyFilters();
-                                    });
-                                }
-
-                                // Apply both search and category filters
-                                // Replace the applyFilters function
-
-                                function applyFilters() {
-                                    if (!searchInput) return;
-
-                                    const searchTerm = searchInput.value.toLowerCase();
-                                    const cards = document.querySelectorAll('.command-card');
-                                    let visibleCount = 0;
-
-                                    cards.forEach(card => {
-                                        const category = card.getAttribute('data-category');
-                                        const commandName = card.getAttribute('data-name');
-                                        const description = card.querySelector('p').textContent.toLowerCase();
-
-                                        // Check if matches category filter
-                                        const passesCategory = activeFilter === 'all' || category === activeFilter;
-
-                                        // Check if matches search term
-                                        const passesSearch = commandName.includes(searchTerm) ||
-                                            description.includes(searchTerm);
-
-                                        // Show/hide based on filters
-                                        if (passesCategory && passesSearch) {
-                                            card.style.display = 'block';
-                                            visibleCount++;
-                                        } else {
-                                            card.style.display = 'none';
-                                        }
-                                    });
-
-                                    // Show no results message if needed
-                                    const noResultsMessage = document.querySelector('.no-results-message');
-                                    if (visibleCount === 0) {
-                                        if (!noResultsMessage) {
-                                            const message = document.createElement('div');
-                                            message.className = 'no-results-message col-span-3 text-center text-gray-400 py-8';
-                                            message.innerHTML = `No commands found matching "${searchTerm}"`;
-                                            document.getElementById('commands-container').appendChild(message);
-                                        }
-                                    } else if (noResultsMessage) {
-                                        noResultsMessage.remove();
-                                    }
-                                }
-
-                                // Add debouncing to search for better performance
-                                let searchTimeout;
-                                searchInput.addEventListener('input', () => {
-                                    clearTimeout(searchTimeout);
-                                    searchTimeout = setTimeout(applyFilters, 300);
-                                });
-                                // Animated progress for "Now Playing" cards
-                                const progressBars = document.querySelectorAll('.progress-bar');
-                                progressBars.forEach(bar => {
-                                    const fill = bar.querySelector('.progress-fill');
-                                    if (fill) {
-                                        const width = fill.style.width;
-                                        // Set initial width to 0 and animate to actual width
-                                        fill.style.width = '0%';
-                                        setTimeout(() => {
-                                            fill.style.transition = 'width 1s ease';
-                                            fill.style.width = width;
-                                        }, 100);
-                                    }
-                                });
-
-                                // Animated orbs in background
-                                const orbs = document.querySelectorAll('.orb');
-                                orbs.forEach(orb => {
-                                    // Set random initial positions
-                                    const x = Math.random() * 100;
-                                    const y = Math.random() * 100;
-                                    orb.style.left = `${x}%`;
-                                    orb.style.top = `${y}%`;
-                                });
-
-                                // Mobile menu toggle functionality
-                                const mobileMenuButton = document.getElementById('mobile-menu-button');
-                                const mobileMenu = document.getElementById('mobile-menu');
-
-                                if (mobileMenuButton && mobileMenu) {
-                                    mobileMenuButton.addEventListener('click', function () {
-                                        mobileMenu.classList.toggle('hidden');
-                                    });
-                                }
-
-                                // Run initial filter
-                                applyFilters();
-                            });
-                        </script>
+</html>

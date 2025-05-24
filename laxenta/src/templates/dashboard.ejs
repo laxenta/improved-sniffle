@@ -160,10 +160,10 @@
                 <span id="latency" class="latency">Latency: --ms</span>
             </div>
             <div class="github-link">
-                <a href="https://github.com/yourusername/improved-sniffle" target="_blank">
-                    <i class="fab fa-github"></i> View on GitHub
+                <a href="https://github.com/shelleyloosespatience" target="_blank">
+                    <i class="fab fa-github"></i> View ma sad GitHub lol
                 </a>
-                <span class="version-info">Version 1.0.0</span> <!-- Added version info -->
+                <span class="version-info">Version 2.0</span>
             </div>
         </div>
     </footer>
@@ -1449,7 +1449,7 @@ function loadLikedSongs() {
         );
     }
 
-    // Unified player control function to reduce duplication ( these are UNUSEDDDDDDDD )
+    // Uunified player control function to reduce duplication ( these are UNUSEDDDDDDDD )
     async function controlPlayer(action, guildId) {
         const actions = {
             pause: { endpoint: `/api/music/pause/${guildId}`, successMsg: 'Track paused' },
@@ -1624,32 +1624,25 @@ function loadLikedSongs() {
         }
     }
 
-    // Init function to set up all event listeners and initial loads
     function initDashboard() {
-        // Handle return from auth first
         handleAuthReturn();
         
-        // Then check session and load data
         checkSession().then(valid => {
             if (valid) {
-                // Load content with a slight delay between each to prevent overwhelming the API
                 loadNowPlaying();
                 setTimeout(() => loadPlaylists(), 300);
                 setTimeout(() => loadLikedSongs(), 600);
             }
         });
         
-        // Set up tab switching
         const tabs = document.querySelectorAll('.tab');
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabId = tab.getAttribute('data-tab');
                 
-                // Update active tab
                 tabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
                 
-                // Update visible content
                 document.querySelectorAll('.tab-content').forEach(content => {
                     content.classList.remove('active');
                 });
@@ -1657,12 +1650,10 @@ function loadLikedSongs() {
             });
         });
         
-        // Set up search functionality
         const searchInput = document.getElementById('search-input');
         const searchButton = document.getElementById('search-button');
         
         if (searchInput && searchButton) {
-            // Search on button click
             searchButton.addEventListener('click', () => {
                 const query = searchInput.value.trim();
                 if (query) {
@@ -1670,7 +1661,6 @@ function loadLikedSongs() {
                 }
             });
             
-            // Search on enter key
             searchInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     const query = searchInput.value.trim();
@@ -1681,13 +1671,11 @@ function loadLikedSongs() {
             });
         }
         
-        //Set up refresh buttons ;3
         const refreshButtons = {
             'refresh-playlists': loadPlaylists,
             'refresh-liked-songs': loadLikedSongs,
             'refresh-now-playing': loadNowPlaying,
             'refresh-queue': () => window.musicPlayer.updateQueueDisplay(window.musicPlayer.activeGuildId)
-
         };
         
         Object.entries(refreshButtons).forEach(([id, callback]) => {
@@ -1704,7 +1692,6 @@ function loadLikedSongs() {
             }
         });
         
-        // Initial bot status check
         fetch('/api/status')
             .then(response => response.json())
             .then(data => {
@@ -1714,7 +1701,6 @@ function loadLikedSongs() {
                 updateBotStatus(false);
             });
         
-        // Check bot status every 60 seconds
         setInterval(() => {
             fetch('/api/status')
                 .then(response => response.json())
@@ -2004,7 +1990,7 @@ function loadLikedSongs() {
 
     document.head.appendChild(style);
 </script>
-
 </body>
 </html>
 
+<!-- funny lol it took me 10 hours to finish, done on 10/05/2025-->

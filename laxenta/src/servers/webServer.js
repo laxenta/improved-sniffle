@@ -1046,19 +1046,26 @@ this.app.post('/api/music/play', this.isAuthenticated.bind(this), async (req, re
         }
 
         // Search for track
-        const result = await this.client.manager.search(searchQuery, req.user);
+        const result = await this.client.manager.search(
+            searchQuery,
+            req.user
+        ).catch(error => {
+            console.error("Search error:", error);
+            throw new Error("Failed to search for track");
+        });
 
-        if (result.loadType === "LOAD_FAILED") {
-            return res.status(500).json({ error: "Failed to load track" });
+        if (!result || !result.tracks || !result.tracks.length) {
+            return res.status(404).json({ error: "No playable tracks found" });
         }
 
-        if (result.loadType === "NO_MATCHES") {
-            return res.status(404).json({ error: "No matches found" });
-        }
+        // Try to find a non-age-restricted track
+        let track = result.tracks.find(t => 
+            !t.title.toLowerCase().includes('age-restricted') && 
+            !t.title.toLowerCase().includes('login required')
+        );
 
-        const track = result.tracks[0];
         if (!track) {
-            return res.status(404).json({ error: "No track found" });
+            track = result.tracks[0]; // Fallback to first track if no alternative found
         }
 
         // Add track info

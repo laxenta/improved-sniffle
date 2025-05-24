@@ -197,20 +197,20 @@ class MusicPlayer {
 
             const data = await response.json();
             
+            // Start queue polling after successful play request
+            this.startQueuePolling(guildId);
+            
             // Immediately update queue display
             await this.updateQueueDisplay(guildId, true);
-            
+
             // Show success toast
             this.showToast({
                 title: 'Track Added',
-                message: `${data.track.title}`,
+                message: data.track.title,
                 type: 'success',
                 icon: 'fa-music'
             });
 
-            // Set up polling for queue updates
-            this.startQueuePolling(guildId);
-            
             return data;
         } catch (error) {
             console.error('Play error:', error);
@@ -452,6 +452,19 @@ class MusicPlayer {
             toast.classList.replace('animate__fadeInRight', 'animate__fadeOutRight');
             setTimeout(() => toast.remove(), 300);
         }, duration);
+    }
+
+    // Add this method to MusicPlayer class
+    startQueuePolling(guildId) {
+        if (this.queuePollingInterval) {
+            clearInterval(this.queuePollingInterval);
+        }
+        
+        this.queuePollingInterval = setInterval(() => {
+            if (guildId) {
+                this.updateQueueDisplay(guildId, false);
+            }
+        }, 3000); // Poll every 3 seconds
     }
 }
 

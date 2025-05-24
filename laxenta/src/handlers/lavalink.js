@@ -11,9 +11,17 @@ module.exports = (client) => {
                 password: "https://dsc.gg/ajidevserver",
                 secure: true,
                 retryAmount: 5,
-                retryDelay: 3000
+                retryDelay: 3000,
+                requestTimeout: 10000,
+                // Add these options
+                options: {
+                    youtubeSearchEnabled: true,
+                    spotifySearchEnabled: true
+                }
             }
         ],
+        // Add these options
+        autoPlay: true,
         send: (id, payload) => {
             const guild = client.guilds.cache.get(id);
             if (guild) guild.shard.send(payload);

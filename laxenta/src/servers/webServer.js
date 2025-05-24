@@ -858,30 +858,49 @@ this.app.post('/api/music/volume/:guildId', this.isAuthenticated.bind(this), (re
 this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req, res) => {
     try {
         const player = this.client.manager.players.get(req.params.guildId);
-        if (!player) return res.status(404).json({ error: 'No player found', code: 404 });
+        
+        // If no player exists, return empty queue state instead of error
+        if (!player) {
+            return res.json({
+                currentTrack: null,
+                queue: [],
+                paused: false,
+                volume: 100,
+                playing: false
+            });
+        }
         
         res.json({
+            currentTrack: player.queue.current ? {
+                title: player.queue.current.title,
+                author: player.queue.current.author,
+                duration: player.queue.current.duration,
+                thumbnail: player.queue.current.thumbnail,
+                uri: player.queue.current.uri,
+                requester: player.queue.current.requester
+            } : null,
             queue: player.queue.map(track => ({
                 title: track.title,
                 author: track.author,
                 duration: track.duration,
                 thumbnail: track.thumbnail,
                 uri: track.uri,
-                requestedBy: track.requester.tag
+                requester: track.requester
             })),
-            currentTrack: player.queue.current ? {
-                title: player.queue.current.title,
-                author: player.queue.current.author,
-                duration: player.queue.current.duration,
-                thumbnail: player.queue.current.thumbnail,
-                uri: player.queue.current.uri
-            } : null,
             paused: player.paused,
             volume: player.volume,
-            guildId: player.guild
+            playing: player.playing
         });
     } catch (error) {
-        res.status(500).json({ error: 'failed to get queue', code: 500 });
+        console.error('Queue fetch error:', error);
+        // Return empty state on error instead of error response
+        res.json({
+            currentTrack: null,
+            queue: [],
+            paused: false,
+            volume: 100,
+            playing: false
+        });
     }
 });
 
@@ -939,26 +958,34 @@ this.app.get('/api/spotify/playlist/:id/tracks', this.isAuthenticated.bind(this)
 this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req, res) => {
     try {
         const player = this.client.manager.players.get(req.params.guildId);
+        
+        // If no player exists, return empty queue state instead of error
         if (!player) {
-            return res.status(404).json({ error: 'No active player found' });
+            return res.json({
+                currentTrack: null,
+                queue: [],
+                paused: false,
+                volume: 100,
+                playing: false
+            });
         }
         
         res.json({
-            current: player.queue.current ? {
+            currentTrack: player.queue.current ? {
                 title: player.queue.current.title,
                 author: player.queue.current.author,
                 duration: player.queue.current.duration,
                 thumbnail: player.queue.current.thumbnail,
                 uri: player.queue.current.uri,
-                requester: player.queue.current.requester.username
-            } : "nobody knows :3",      // might cause issues cz its not null lol
+                requester: player.queue.current.requester
+            } : null,
             queue: player.queue.map(track => ({
                 title: track.title,
                 author: track.author,
                 duration: track.duration,
                 thumbnail: track.thumbnail,
                 uri: track.uri,
-                requester: track.requester.username
+                requester: track.requester
             })),
             paused: player.paused,
             volume: player.volume,
@@ -966,7 +993,14 @@ this.app.get('/api/music/queue/:guildId', this.isAuthenticated.bind(this), (req,
         });
     } catch (error) {
         console.error('Queue fetch error:', error);
-        res.status(500).json({ error: error.message });
+        // Return empty state on error instead of error response
+        res.json({
+            currentTrack: null,
+            queue: [],
+            paused: false,
+            volume: 100,
+            playing: false
+        });
     }
 });
 // playyy in dc

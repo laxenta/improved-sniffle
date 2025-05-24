@@ -1115,7 +1115,7 @@ this.app.get('/api/commands', (req, res) => {
         type: 'slash'
     }));
 
-    const prefixCommands = Array.from(req.client.commands.values()).map(cmd => ({
+    const prefixCommands = Array.from(req.client.prefixCommands.values()).map(cmd => ({
         name: cmd.name,
         description: cmd.description,
         type: 'prefix',

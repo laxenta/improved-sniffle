@@ -292,51 +292,54 @@
             </div>
 
             <!-- Commands Grid -->
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="commands-container">
-                <% if (commands && commands.length > 0) { %>
-                    <% commands.forEach(function(command) { %>
-                        <div class="command-card bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg p-6 border border-gray-700 hover:border-purple-500 transition-all" 
-                             data-category="<%= command.type %>" 
-                             data-name="<%= command.name.toLowerCase() %>"
-                             data-description="<%= command.description.toLowerCase() %>">
-                            <div class="flex items-center mb-4">
-                                <% if (command.type === 'slash') { %>
-                                    <span class="bg-blue-500 bg-opacity-20 text-blue-400 px-2 py-1 rounded text-sm mr-3">
-                                        /
-                                    </span>
-                                <% } else { %>
-                                    <span class="bg-purple-500 bg-opacity-20 text-purple-400 px-2 py-1 rounded text-sm mr-3">
-                                        !
-                                    </span>
-                                <% } %>
-                                <h3 class="font-semibold text-lg"><%= command.name %></h3>
-                            </div>
-                            
-                            <p class="text-gray-400 mb-4"><%= command.description %></p>
-                            
-                            <div class="space-y-2 text-sm">
-                                <% if (command.usage) { %>
-                                    <div class="text-gray-500">
-                                        <span class="font-medium">Usage:</span> 
-                                        <code class="bg-gray-900 px-2 py-1 rounded"><%= command.usage %></code>
-                                    </div>
-                                <% } %>
-                                <% if (command.aliases && command.aliases.length > 0) { %>
-                                    <div class="text-gray-500">
-                                        <span class="font-medium">Aliases:</span> <%= command.aliases.join(', ') %>
-                                    </div>
-                                <% } %>
-                            </div>
-                        </div>
-                    <% }); %>
-                <% } else { %>
-                    <div class="col-span-full text-center text-gray-400 py-12">
-                        <i class="fas fa-code text-4xl mb-4 opacity-50"></i>
-                        <p class="text-lg">No commands available yet</p>
-                        <p class="text-sm">Commands will appear here once the bot is registered</p>
+    <!-- Commands Grid -->
+<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="commands-container">
+    <% if (commands && commands.length > 0) { %>
+        <% commands.forEach(function(command) { %>
+            <% if (command && command.name) { %>
+                <div class="command-card bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg p-6 border border-gray-700 hover:border-purple-500 transition-all" 
+                     data-category="<%= command.type || 'unknown' %>" 
+                     data-name="<%= String(command.name).toLowerCase() %>"
+                     data-description="<%= String(command.description || 'No description available').toLowerCase() %>">
+                    <div class="flex items-center mb-4">
+                        <% if (command.type === 'slash') { %>
+                            <span class="bg-blue-500 bg-opacity-20 text-blue-400 px-2 py-1 rounded text-sm mr-3">
+                                /
+                            </span>
+                        <% } else { %>
+                            <span class="bg-purple-500 bg-opacity-20 text-purple-400 px-2 py-1 rounded text-sm mr-3">
+                                !
+                            </span>
+                        <% } %>
+                        <h3 class="font-semibold text-lg"><%= command.name %></h3>
                     </div>
-                <% } %>
-            </div>
+                    
+                    <p class="text-gray-400 mb-4"><%= command.description || 'No description available' %></p>
+                    
+                    <div class="space-y-2 text-sm">
+                        <% if (command.usage) { %>
+                            <div class="text-gray-500">
+                                <span class="font-medium">Usage:</span> 
+                                <code class="bg-gray-900 px-2 py-1 rounded"><%= command.usage %></code>
+                            </div>
+                        <% } %>
+                        <% if (command.aliases && Array.isArray(command.aliases) && command.aliases.length > 0) { %>
+                            <div class="text-gray-500">
+                                <span class="font-medium">Aliases:</span> <%= command.aliases.join(', ') %>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+            <% } %>
+        <% }); %>
+    <% } else { %>
+        <div class="col-span-full text-center text-gray-400 py-12">
+            <i class="fas fa-code text-4xl mb-4 opacity-50"></i>
+            <p class="text-lg">No commands available yet</p>
+            <p class="text-sm">Commands will appear here once the bot is registered</p>
+        </div>
+    <% } %>
+</div>
         </div>
     </section>
 

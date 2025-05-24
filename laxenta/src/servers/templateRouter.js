@@ -5,7 +5,7 @@ const { loadAllCommands } = require('../handlers/commandHandler'); // Fix import
 
 // Create standard template data for any route
 function createTemplateData(req, client, commands = []) {
-    // Add null checks and default values
+    // Get slash commands
     const slashCommands = client?.slashCommands ? Array.from(client.slashCommands.values()).map(cmd => ({
         name: cmd.data.name,
         description: cmd.data.description,
@@ -14,7 +14,8 @@ function createTemplateData(req, client, commands = []) {
         category: cmd.category || 'General'
     })) : [];
 
-    const prefixCommands = client?.commands ? Array.from(client.commands.values()).map(cmd => ({
+    // Get prefix commands - Fixed to use prefixCommands collection
+    const prefixCommands = client?.prefixCommands ? Array.from(client.prefixCommands.values()).map(cmd => ({
         name: cmd.name,
         description: cmd.description || 'No description available',
         type: 'prefix',

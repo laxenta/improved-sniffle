@@ -1,7 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
 const axios = require('axios');
 
-const API_KEY = process.env.APEXIFY_API_KEY || "YOUR_API_KEY_HERE";
+const API_KEY = process.env.APEXIFY_API_KEY || "nuuh no api here";
+const DEFAULT_MODEL = "gemini-1.5-flash-online";
 
 async function getReply(userId, query, model, instruction) {
   try {
@@ -32,19 +33,31 @@ async function getReply(userId, query, model, instruction) {
 }
 
 const models = [
-  "gpt-3.5-turbo",
+  "c4ai-aya-expanse-8b",
+  "c4ai-aya-expanse-32b",
+  "reka-flash",
+  "reka-core",
+  "grok-2",
+  "grok-2-mini",
+  "grok-beta",
+  "grok-vision-beta",
+  "grok-2-1212",
+  "grok-2-vision-1212",
+  "grok-3-early",
+  "r1-1776",
+  "sonar-reasoning-pro",
+  "sonar-reasoning",
+  "sonar-pro",
+  "sonar",
   "gpt-4",
   "gpt-4-turbo",
   "claude-3-7-sonnet-20250219-thinking",
   "gpt-4o",
-  "chatgpt-4o-latest",
   "o1-mini",
   "sonar-deep-research",
   "o1",
-  "o1-low",
   "o1-high",
   "o3-mini",
-  "o3-mini-low",
   "o3-mini-high",
   "o3-mini-online",
   "deepseek-r1",
@@ -168,22 +181,6 @@ const models = [
   "command-r-plus-04-2024",
   "command-r-plus-08-2024",
   "command-r7b-12-2024",
-  "c4ai-aya-expanse-8b",
-  "c4ai-aya-expanse-32b",
-  "reka-flash",
-  "reka-core",
-  "grok-2",
-  "grok-2-mini",
-  "grok-beta",
-  "grok-vision-beta",
-  "grok-2-1212",
-  "grok-2-vision-1212",
-  "grok-3-early",
-  "r1-1776",
-  "sonar-reasoning-pro",
-  "sonar-reasoning",
-  "sonar-pro",
-  "sonar",
   "llama-3.1-sonar-small-128k-online",
   "llama-3.1-sonar-large-128k-online",
   "llama-3.1-sonar-huge-128k-online",
@@ -314,12 +311,12 @@ const models = [
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('ask')
-    .setDescription('Ask the AI a question.')
+    .setName('AI')
+    .setDescription('models like o1, deepssek, claude 3.7 and reasoning available, Ask any available AI a question')
     .setContexts([0, 2])
     .addStringOption(option =>
       option.setName('query')
-        .setDescription('Your question for the AI')
+        .setDescription('Your question for any of the AI default is gemini-1.5-flash-online')
         .setRequired(true)
     )
     .addStringOption(option =>
@@ -338,26 +335,28 @@ module.exports = {
 
   async execute(interaction) {
     const query = interaction.options.getString('query');
-    const model = interaction.options.getString('model') || CONFIG.DEFAULT_MODEL;
+    const model = interaction.options.getString('model') || DEFAULT_MODEL;
     const ephemeral = interaction.options.getBoolean('ephemeral') ?? true;
     const instruction = interaction.options.getString('instruction') || '';
 
+    // Custom waiting message
     await interaction.deferReply({ ephemeral });
+    await interaction.editReply({ content: "🤔 *Thinking... Give me a moment to process your question...*" });
 
     try {
       const reply = await getReply(interaction.user.id, query, model, instruction);
 
-      // Discord's max message length is 2000 characters.
+      // Discord's max message length is 2000 characters
       if (reply.length > 2000) {
         const messages = [];
         for (let i = 0; i < reply.length; i += 2000) {
           messages.push(reply.substring(i, i + 2000));
         }
 
-        // Send the first chunk as the main reply.
+        // Send first chunk as main reply
         await interaction.editReply({ content: messages[0] });
 
-        // Send the remaining chunks as follow-ups.
+        // Send remaining chunks as follow-ups
         for (let i = 1; i < messages.length; i++) {
           await interaction.followUp({ content: messages[i], ephemeral });
         }
@@ -365,7 +364,7 @@ module.exports = {
         await interaction.editReply({ content: reply });
       }
     } catch (error) {
-      await interaction.editReply({ content: `Error: ${error.message}` });
+      await interaction.editReply({ content: `❌ Error: ${error.message}` });
     }
   },
 

@@ -36,10 +36,10 @@ function saveActiveChannels(data) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('aichat')
-    .setDescription('Toggle AI Chat for this channel.')
+    .setDescription('Toggle cuteee Chat for this channel.')
     .addBooleanOption(option =>
       option.setName('activate')
-        .setDescription('Set to true to enable AI chat, false to disable it.')
+        .setDescription('Set to true to enable chat, false to disable it.')
         .setRequired(true)
     ),
   async execute(interaction) {
@@ -78,7 +78,7 @@ module.exports = {
     // Send roleplay intro message only if it was just activated
     if (activate && !wasActive) {
       await interaction.channel.send(
-        `*she is laying on a plush chaise in the bedroom of of Alucard's mountain place, she looks up from her book, "Poisonous Plants and Their Uses," her emerald eyes meeting Alucard's gaze* ..Oh, hello Alucard, was just brushing up on my botany. It's not like I have much else to do around here.. maybe watch tv i don't know what to do *She sighs, closing the book and swinging her legs around to sit up* I suppose you have something exciting planned for us? Or are you just here to check on your little slave? *mutters* dickhead..`
+        `*Ayumi steps out of the campus building, throws bag into backseat, Her heels click against the pavement, echoing faintly in the student filled parking lot of the collage, she slides into the driving seat of the black Rolls-Royce, glass tinted, leather still warm from the sun. The door shuts with a soft thump. Her phone buzzes, it's her mom's call. She doesn’t check it and starts the car and turns on AC, and just sits for a moment before she had to drive to her home nearby uphill*`
       );
     }
   },

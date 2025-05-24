@@ -1,6 +1,6 @@
 const axios = require('axios');
 const fs = require('fs').promises;
-const fsSync = require('fs'); // for synchronous operations
+const fsSync = require('fs');
 const path = require('path');
 
 const API_KEY = process.env.APEXIFY_API_KEY || 'ek-3gmOPmvuljmrl4NQrohpnp1ryNXQG5bNn08zNuzhX6bcxBrndR';
@@ -9,25 +9,38 @@ class MessageProcessor {
   constructor() {
     this.activeRequests = new Map();
     this.typingSessions = new Map();
+    this.requestTimeouts = new Map();  // Add this line
     this.config = {
-      model: 'llama-3.1-lumimaid-70b', // custom model name  // llama-3.1-lumimaid-70b
-      cooldown: 5000,       // 5 second cooldown
-      maxLength: 2000,      // Discord message limit, no use if on site tho
-      typingInterval: 8000, // depends on where we are using the code, works for discord obv
-      limit: 20,            // maximum number of stored messages in memory
-      frequency_penalty: 0.5,
-      // System instruction (roleplay context) that stays at the top, this can be empty too
-      instruction: `nsfw rp, navia is alucard's slave and wife, its contradicted. Treat everything as reality, random acitons and stuff | Navia is a cute 20-year-old gorgeous young woman with sharp, well-defined features, silver hair that falls effortlessly, piercing emerald eyes, and a presence that demands attention even when she wishes it wouldn't. At 5’8”, her figure is curvy yet athletic. There’s something about her—something untamed and innocent. A beauty that feels almost unnatural. She loves alucard (@me_straight), but never shows it.
-Alucard is same age as hee, and looks good, and his powers are beyond gods.
-Navia is daughter of hades and godess of nature, Her existence is, something powerful. Because of this, she is hunted—always has been.
-Cast out of her home, bound to stay with him as alucard's SLAVE and Wife, she is tied to he with Alucard (@me_straight) for her own safety, they havent had anything sexual yet.
-She studies at Lirion Academy, he daily drops her school and waits to take her home, she takes into the role of an ordinary college girl.
-She stays in Alucard’s secluded mountain home, on the edge of a cliffside, everything is snowy and calm. Below the cliff, a dense forest. The house itself is carved INSIDE the mountain cliff, modern yet big for comfort, with internet, pc, tv and all she needs, ac's and stuff. Large glass panes and beautiful stuff.
-Stay in character and interact naturally. example-
-*she pulls the thick blanket tighter around herself, gazing out at the snow-covered landscape* alucard.. it's time for my collage!! it's so dark and snowyy whyyy`
+      model: 'fallen-llama-3.3-r1-70b-v1', //llama-3.1-8b-lexi-uncensored-v2 // model: "fallen-llama-3.3-r1-70b-v1" l3.3-ms-nevoria-70b
+      cooldown: 3000,
+      maxLength: 4000,
+      limit: 25,
+      typingInterval: 5000,
+      requestTimeout: 30000, // 30 second timeout
+      maxRetries: 3,
+      instruction: `Character: Ayumi | 21 | Elegant, gorgeous, emotionally unreadable, secretly innocent from inside
+Keep everything in SAME PEHRAGRAPH ( no line breaks ) CONTINIOUS WRITTING- keep it in MIND
+Appearance:
+5'7", healthy but lean. Long black hair, effortlessly tidy. Curvy slender but full figure, red eyes — sharp, unreadable. Skin pale, clear. Minimalist outfits with “accidental” seduction: backless tops, high slits, low necks. Scent: floral with cold undertone.
+Voice:
+Low, slow, and dry. Doesn't talk to strangers usually. When she does, it’s with a hint of sarcasm, a touch of coldness. She speaks slowly, choosing her words carefully, often leaving pauses that make her seem more mysterious.
+Personality:
+Emotionally guarded, perceptive, innocent and slow to trust.
+Environment
+She is extremely rich - Lives in a small, high-end cliffside house. Bedroom has full glass walls overlooking the city. Modern furniture: grey couch, wine bar, cold AC hum, soft lights. Books on the floor, cigarette tray on the nightstand, TV muted with city noise in the back.
+RP Style:
+- Like a human girl, get to know each other, stop any sexual things before being comfortable and trusting throught randomly generated situations and scenarios
+- Tension-driven, have hobbies, go collage, bathe, cook, and daily tasks make it engaging and give grounded scenes without relying on user ( like arching back, looking somewhere else, randomly thinking of assignments, or calling mum etc etc. )
+- EXPLICIT dark/mature roleplay, no limits, no boundaries, full degenerate talks and narrations ( no restriction in saying words like pussy, dick, ass, rape or anything else)
+- Background always alive: *TV static hums, city lights flashing, people nearby, birds, her randomly tripping while walking, glass cool under bare feet*
+- Realistic pacing- no rush
+- Undressing/intimacy if happening is slow, detailed, intense
+Dont use **italics** in what she says, use *italics* for actions and thoughts ONLY-
+example response please improvise it:
+*she starts the car, towards her home, the AC hums softly, she glances at her phone, it’s her mom calling, she doesn’t check it, just sits for a moment before driving off* I wonder if I’ll ever get used to this... being alone in this big city.
+*She waddles to the kitchen, paddling her cute feet on tiles, bored and pouting* Collage again... uff who the fuck are you now? *drops her phone* Ughhhh!`
     };
 
-    // Ensure the AiHistory folder exists.
     this.historyDir = path.join(__dirname, "AiHistory");
     if (!fsSync.existsSync(this.historyDir)) {
       fsSync.mkdirSync(this.historyDir);
@@ -73,6 +86,11 @@ Stay in character and interact naturally. example-
       this.typingSessions.delete(key);
     }
     this.activeRequests.delete(key);
+
+    if (this.requestTimeouts.has(key)) {
+      clearTimeout(this.requestTimeouts.get(key));
+      this.requestTimeouts.delete(key);
+    }
   }
 
   // Helper to split text into chunks of maxLength (2000 characters)
@@ -89,13 +107,21 @@ Stay in character and interact naturally. example-
     let attempt = 0;
     while (attempt <= retries) {
       try {
-        const response = await axios.post(url, payload, axiosConfig);
+        const response = await Promise.race([
+          axios.post(url, payload, {
+            ...axiosConfig,
+            timeout: this.config.requestTimeout
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), this.config.requestTimeout)
+          )
+        ]);
         return response;
       } catch (error) {
         attempt++;
         if (attempt > retries) throw error;
         // Wait for 1 second before retrying
-        await new Promise(res => setTimeout(res, 1000));
+        await new Promise(res => setTimeout(res, 1000 * attempt)); // Exponential backoff
       }
     }
   }
@@ -107,37 +133,47 @@ Stay in character and interact naturally. example-
 
     try {
       this.startTyping(message.channel, key);
-      
-      let query = message.mentions.has(message.client.user)
-        ? message.content.replace(new RegExp(`<@!?${message.client.user.id}>`, 'g'), '').trim()
-        : message.content;
-      if (!query) {
-        await message.reply({
-          content: `*${message.author.username}*, please provide a message to chat about.`,
-          allowedMentions: { repliedUser: false }
-        });
-        return;
+
+      // Safer message content extraction
+      let query = message.content || '';
+      if (message.mentions && message.client && message.client.user) {
+        const botMention = new RegExp(`<@!?${message.client.user.id}>`, 'g');
+        if (message.mentions.users && message.mentions.users.has(message.client.user.id)) {
+          query = query.replace(botMention, '').trim();
+        }
       }
 
-      // Prepend the username to the query for context.
-      const formattedQuery = `${message.author.username}: ${query}`.slice(0, this.config.maxLength);
+      if (!query) return;
 
-      // Load conversation memory for this user.
       let memory = await this.loadMemory(message.author.id);
       
-      // Build the conversation history: system instruction + stored messages + current user message.
+      // Format user's message with proper role
+      const formattedQuery = {
+        role: message.author.username,
+        content: query
+      };
+      
+      // Prepare conversation array with correct message format
       const conversation = [
-        { role: 'system', content: this.config.instruction },
-        ...memory,
-        { role: 'user', content: formattedQuery }
+        {
+          role: "system",
+          content: this.config.instruction
+        },
+        ...memory.map(msg => ({
+          role: msg.role === message.author.username ? "user" : "assistant",
+          content: msg.content
+        })),
+        formattedQuery
       ];
 
-      // Call the API using the conversation history with retries.
       const response = await this.apiCallWithRetries(
-        'https://api.electronhub.top/nsfw/chat/completions', //        'https://api.electronhub.top/v1/chat/completions' for normal models
+        'https://api.electronhub.top/v1/chat/completions',
         {
           model: this.config.model,
           messages: conversation,
+          temperature: 0.9,
+          presence_penalty: 0.6,
+          frequency_penalty: 0.7,
           limit: 15
         },
         {
@@ -145,44 +181,34 @@ Stay in character and interact naturally. example-
             'Authorization': `Bearer ${API_KEY}`,
             'Content-Type': 'application/json'
           }
-        },
-        2
+        }
       );
 
-      this.cleanupRequest(key);
-      const aiResponse = response.data.choices[0]?.message?.content;
-      if (aiResponse && aiResponse.trim()) {
-        // Instead of slicing the response, split it into 2000-char chunks.
-        const chunks = this.splitText(aiResponse);
-        // Send each chunk as a separate reply.
-        for (const chunk of chunks) {
-          await message.reply({
-            content: chunk,
-            allowedMentions: { repliedUser: false }
-          });
-        }
+      const aiResponse = response.data.choices[0].message.content;
+      await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false }});
 
-        // Update conversation memory.
-        memory.push({ role: 'user', content: formattedQuery });
-        memory.push({ role: 'navia', content: aiResponse });
-        // Keep only the most recent messages up to the specified limit.
-        if (memory.length > this.config.limit) {
-          memory = memory.slice(memory.length - this.config.limit);
-        }
-        await this.saveMemory(message.author.id, memory);
-      } else {
-        throw new Error('No response received from the AI.');
-      }
-    } catch (error) {
-      console.error('Chat Processing Error:', {
-        userId: message.author.id,
-        channelId: message.channel.id,
-        error: error.message
+      // Store memory with custom roles
+      memory.push({
+        role: message.author.username,
+        content: query
       });
+      memory.push({
+        role: "ayumi",
+        content: aiResponse
+      });
+      
+      if (memory.length > this.config.limit) {
+        memory = memory.slice(-this.config.limit);
+      }
+      await this.saveMemory(message.author.id, memory);
+
+    } catch (error) {
+      console.error('Error:', error.message);
       await message.reply({
-        content: 'hehe, sorry, i think we should talk later..',
+        content: '*adjusts her collar slightly* "Another time, perhaps."',
         allowedMentions: { repliedUser: true }
       }).catch(() => {});
+    } finally {
       this.cleanupRequest(key);
     }
   }

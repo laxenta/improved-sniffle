@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const axios = require('axios');
 
-const API_KEY = process.env.APEXIFY_API_KEY || "nuuh no api here";
+const API_KEY = process.env.APEXIFY_API_KEY || "ek-3gmOPmvuljmrl4NQrohpnp1ryNXQG5bNn08zNuzhX6bcxBrndR";
 const DEFAULT_MODEL = "gemini-1.5-flash-online";
 
 async function getReply(userId, query, model, instruction) {
@@ -311,7 +311,7 @@ const models = [
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('AI')
+    .setName('ask-ai')
     .setDescription('models like o1, deepssek, claude 3.7 and reasoning available, Ask any available AI a question')
     .setContexts([0, 2])
     .addStringOption(option =>

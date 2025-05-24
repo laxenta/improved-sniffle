@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const { getDiscordAvatarURL } = require('../../../servers/templateRouter');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,7 +13,10 @@ module.exports = {
   async execute(interaction) {
     try {
       const user = interaction.options.getUser('target') || interaction.user;
-      const avatarUrl = getDiscordAvatarURL(user.id, user.avatar);
+      const avatarUrl = user.displayAvatarURL({ 
+        size: 4096, 
+        dynamic: true 
+      });
       
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
@@ -23,7 +25,10 @@ module.exports = {
         .setImage(avatarUrl)
         .setFooter({ 
           text: `Requested by ${interaction.user.tag}`, 
-          iconURL: getDiscordAvatarURL(interaction.user.id, interaction.user.avatar)
+          iconURL: interaction.user.displayAvatarURL({ 
+            size: 128, 
+            dynamic: true 
+          })
         })
         .setTimestamp();
       
@@ -33,7 +38,7 @@ module.exports = {
     } catch (error) {
       console.error('Error displaying avatar:', error);
       await interaction.reply({
-        content: 'There was an error fetching the avatar, maybe they’re looking a bit off today!',
+        content: 'There was an error fetching the avatar, maybe they\'re looking a bit off today!',
         flags: MessageFlags.Ephemeral,
       });
     }

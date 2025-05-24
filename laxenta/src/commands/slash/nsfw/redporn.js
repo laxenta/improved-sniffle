@@ -52,7 +52,7 @@ async function fetchMedia(tag) {
 
 async function updateReply(interaction, data) {
   if (interaction.guild) {
-    return await interaction.editReply(data);
+    return await interaction.editReply(data).then(res => res);
   } else {
     const reply = await interaction.fetchReply();
     return await interaction.webhook.editMessage(reply.id, data);
@@ -294,7 +294,7 @@ module.exports = {
     const tag = interaction.options.getString("tag");
     const isPublic = interaction.channel && interaction.channel.nsfw;
     // NSFW channels: public reply; non-NSFW: ephemeral reply.
-    await interaction.deferReply({ ephemeral: !isPublic, fetchReply: true });
+    await interaction.deferReply({ ephemeral: !isPublic }).then(res => res);
     const message = await sendMedia(interaction, tag, isPublic);
     if (message) registerButtonHandlers(interaction, tag, message, isPublic);
   },

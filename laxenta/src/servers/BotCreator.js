@@ -69,7 +69,6 @@ class BotManager {
     }
 
     async generateBotCode(filePath, config) {
-        // Remove dependencies on client.user
         const botCode = `/*
 BOT_CONFIG:
 ${JSON.stringify(config, null, 2)}
@@ -84,6 +83,7 @@ const MEMORY_DIR = path.join(__dirname, 'memory');
 
 class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
     constructor() {
+        // Initialize client with required intents
         this.botId = '${config.id}';
         this.client = new Client({
             intents: [
@@ -95,7 +95,7 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
             ]
         });
 
-        // Initialize missing properties first
+        // Initialize properties first
         this.memoryCache = new Map();
         this.activeRequests = new Map();
         this.typingSessions = new Map();
@@ -116,7 +116,11 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
             cooldown: ${config.settings.cooldown}
         };
 
+        // Set up event handlers
         this.setupEventHandlers();
+        
+        // Start the bot
+        this.start().catch(console.error);
     }
 
     setupEventHandlers() {
@@ -130,7 +134,7 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
                     name: '${config.presence.activity}',
                     type: '${config.presence.activityType}'
                 }]
-            });
+            }).catch(console.error);
         });
 
         this.client.on('messageCreate', async (message) => {
@@ -138,14 +142,11 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
             if (message.author.bot) return;
 
             // Only respond if bot is mentioned or in DMs
-            if (!message.mentions.has(this.client.user) && message.channel.type !== 'DM') return;
+            if (!message.mentions.has(this.client.user) && message.channel.type !== 1) return;
 
-            // Remove bot mention from message content
+            // Extract content from message
             let content = message.content;
-            if (message.mentions.has(this.client.user)) {
-                content = content.replace(/<@!?${this.client.user.id}>/g, '').trim();
-            }
-
+            
             // Don't process empty messages
             if (!content) {
                 await message.reply("Hello! How can I help you?");
@@ -318,7 +319,7 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
                 },
                 {
                     headers: {
-                        'Authorization': \`Bearer \${process.env.ANUBIS_TOKEN || '${config.token}'}\`,
+                        'Authorization': \`Bearer \${process.env.APEXIFY_API_KEY || '${config.token}'}\`,
                         'Content-Type': 'application/json'
                     }
                 }
@@ -376,16 +377,46 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
     }
 
     start() {
-        console.log('Starting bot...');
-        this.client.login('${config.token}').catch(error => {
-            console.error('Failed to login:', error);
+        return new Promise((resolve, reject) => {
+            this.client.once('ready', () => {
+                console.log(\`Bot \${this.client.user.tag} is ready!\`);
+                
+                // Set presence after bot is ready
+                this.client.user.setPresence({
+                    status: '${config.presence.status}',
+                    activities: [{
+                        name: '${config.presence.activity}',
+                        type: '${config.presence.activityType}'
+                    }]
+                }).catch(console.error);
+                
+                resolve();
+            });
+
+            this.client.login('${config.token}').catch(reject);
         });
     }
 }
 
-// Create and start the bot
+// Create and start bot instance
 const bot = new ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot();
-bot.start();`;
+
+// Handle process termination gracefully
+process.on('SIGINT', () => {
+    console.log('Shutting down bot...');
+    if (bot.client) {
+        bot.client.destroy();
+    }
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('Terminating bot...');
+    if (bot.client) {
+        bot.client.destroy();
+    }
+    process.exit(0);
+});`;
 
         await fs.writeFile(filePath, botCode);
     }
@@ -657,16 +688,6 @@ bot.start();`;
             }
         });
 
-        // Create bot route
-        router.post('/bots/create', isAuthenticated, async (req, res) => {
-            try {
-                const bot = await this.createBot(req.body, req.user.discordId);
-                res.json(bot);
-            } catch (error) {
-                console.error('Error creating bot:', error);
-                res.status(500).json({ error: error.message });
-            }
-        });
 
         // Bot edit route
         router.get('/bots/edit/:id', isAuthenticated, async (req, res) => {

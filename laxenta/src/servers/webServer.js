@@ -1170,8 +1170,6 @@ this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, r
             username: req.user.username
         });
 
-        console.log('Received bot creation request:', req.body);
-
         const botManager = req.app.locals.botManager;
         if (!botManager) {
             throw new Error('Bot manager not initialized');
@@ -1181,9 +1179,9 @@ this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, r
             throw new Error('Bot name is required');
         }
 
-        // Validate token format
-        if (!req.body.token || !/^[\w-]{24}\.[\w-]{6}\.[\w-]{27}$/.test(req.body.token)) {
-            throw new Error('Invalid bot token format');
+        // Less strict token validation - just check if it's a reasonable length and has dots
+        if (!req.body.token || !req.body.token.includes('.') || req.body.token.length < 50) {
+            throw new Error('Invalid bot token');
         }
 
         const newBot = await botManager.createBot({

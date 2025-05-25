@@ -17,6 +17,7 @@ dist/
 *.log
 .env
 node_modules/
+bots/
 dist/
 .vscode/
 ffmpeg/

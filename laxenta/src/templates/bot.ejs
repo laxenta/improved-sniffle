@@ -204,6 +204,7 @@
                 </button>
             </div>
             
+            <!-- Enhanced Create Bot Form -->
             <form id="createBotForm">
                 <div class="form-group">
                     <label><i class="fas fa-tag"></i> Bot Name</label>
@@ -218,6 +219,56 @@
                 <div class="form-group">
                     <label><i class="fas fa-brain"></i> Bot Instructions</label>
                     <textarea id="instruction" name="instruction" required></textarea>
+                </div>
+
+                <div class="settings-section">
+                    <h3><i class="fas fa-sliders-h"></i> Bot Settings</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>Temperature</label>
+                            <div class="slider-container">
+                                <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.9" class="slider">
+                                <span class="slider-value">0.9</span>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label>Presence Penalty</label>
+                            <div class="slider-container">
+                                <input type="range" id="presence_penalty" min="0" max="2" step="0.1" value="0.6" class="slider">
+                                <span class="slider-value">0.6</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="presence-section">
+                    <h3><i class="fas fa-dice-d20"></i> Presence Settings</h3>
+                    <div class="presence-grid">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="status" class="select-custom">
+                                <option value="online">Online</option>
+                                <option value="idle">Idle</option>
+                                <option value="dnd">Do Not Disturb</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Activity</label>
+                            <input type="text" id="activity" value="with humans" class="select-custom">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Activity Type</label>
+                            <select id="activityType" class="select-custom">
+                                <option value="PLAYING">Playing</option>
+                                <option value="WATCHING">Watching</option>
+                                <option value="LISTENING">Listening to</option>
+                                <option value="COMPETING">Competing in</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-primary">
@@ -314,13 +365,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const formData = {
-                    name: document.getElementById('botName').value, // Changed from botName to name
+                    name: document.getElementById('botName').value,
                     token: document.getElementById('botToken').value,
                     instruction: document.getElementById('instruction').value,
                     model: 'anubis-pro-105b-v1',
                     settings: {
-                        temperature: 0.9,
-                        presence_penalty: 0.6,
+                        temperature: parseFloat(document.getElementById('temperature').value),
+                        presence_penalty: parseFloat(document.getElementById('presence_penalty').value),
                         frequency_penalty: 0.7,
                         limit: 10,
                         maxLength: 4000,
@@ -330,13 +381,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         cooldown: 3000
                     },
                     presence: {
-                        status: 'online',
-                        activity: 'with humans',
-                        activityType: 'PLAYING'
+                        status: document.getElementById('status').value,
+                        activity: document.getElementById('activity').value,
+                        activityType: document.getElementById('activityType').value
                     }
                 };
-
-                console.log('Sending bot creation request:', formData); // Debug log
 
                 const response = await fetch('/api/bots/create', {
                     method: 'POST',

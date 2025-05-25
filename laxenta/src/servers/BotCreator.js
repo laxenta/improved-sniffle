@@ -55,14 +55,15 @@ class BotManager {
                 activityType: config.presence?.activityType || 'PLAYING'
             },
             createdAt: new Date().toISOString(),
-            isRunning: false
+            isRunning: true // Changed to true by default
         };
 
         // Generate and save bot code
         await this.generateBotCode(botFilePath, botConfig);
-        
-        // Save bot config
         await this.saveBotConfig(botFilePath, botConfig);
+
+        // Start the bot immediately
+        await this.startBot(botId, userId);
 
         return botConfig;
     }

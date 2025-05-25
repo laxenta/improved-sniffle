@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { loadAllCommands } = require('../handlers/commandHandler'); // Fix import
-
+const BotManager = require('./BotCreator');
 
 // Create standard template data for any route
-function createTemplateData(req, client, commands = []) {
+async function createTemplateData(req, client, botManager) {
     // Get slash commands
     const slashCommands = client?.slashCommands ? Array.from(client.slashCommands.values()).map(cmd => ({
         name: cmd.data.name,
@@ -32,7 +32,8 @@ function createTemplateData(req, client, commands = []) {
     // Combine both command types
     const allCommands = [...slashCommands, ...prefixCommands];
 
-    return {
+    // Base data object
+    const baseData = {
         botName: client?.user?.username || 'Discord Bot',
         user: req.user,
         isAuthenticated: isAuth,
@@ -57,9 +58,41 @@ function createTemplateData(req, client, commands = []) {
         },
         botAvatar: client?.user?.displayAvatarURL?.({ size: 1024 }) || 'https://images-ext-1.discordapp.net/external/Vj5XAuCV3kpUCA121vpFLT_8Xo-EonGppjyCNaCd6Pw/%3Fsize%3D1024/https/cdn.discordapp.com/avatars/1107155830274523136/e84dd5b59ab14bcf7685a582db0a920e.webp?format=webp&width=374&height=374',
     };
+
+    // Add bot-specific data if botManager is provided
+    if (botManager && req.user) {
+        try {
+            const userBots = await botManager.getUserBots(req.user.discordId);
+            const publicBots = await botManager.getAllBots();
+            
+            return {
+                ...baseData,
+                userBots: userBots || [],
+                publicBots: publicBots.filter(bot => bot.isPublic) || [],
+                stats: {
+                    ...baseData.stats,
+                    totalBots: userBots.length,
+                    activeBots: userBots.filter(bot => bot.isRunning).length
+                }
+            };
+        } catch (error) {
+            console.error('Error loading bot data:', error);
+            return {
+                ...baseData,
+                userBots: [],
+                publicBots: [],
+                error: 'Failed to load bots'
+            };
+        }
+    }
+
+    return baseData;
 }
 
 function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
+    // Initialize BotManager
+    const botManager = new BotManager();
+    
     const ejsFiles = fs.readdirSync(templatesDir)
         .filter(file => {
             const filePath = path.join(templatesDir, file);
@@ -73,6 +106,8 @@ function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
         'dashboard': { path: '/dashboard', auth: true },
         'music': { path: '/profile', auth: true, requireSpotify: true },
         'error': { path: '/error', auth: false },
+        // Add bot template as special route
+        'bot': { path: '/bots', auth: true, requireBotData: true }
     };
 
     const commands = Array.from(client.slashCommands.values()).map(cmd => ({
@@ -87,19 +122,24 @@ function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
             auth: false
         };
 
-        const routeHandler = (req, res) => {
-            const templateData = createTemplateData(req, client, commands);
+        const routeHandler = async (req, res) => {
+            try {
+                // Get template data with bot manager for bot routes
+                const templateData = await createTemplateData(
+                    req, 
+                    client, 
+                    routeConfig.requireBotData ? botManager : null
+                );
 
-            // Special data injection
-            if (templateName === 'error') {
-                templateData.error = req.query.message || 'An unknown error occurred';
+                res.render(templateName, templateData);
+            } catch (error) {
+                console.error(`Error rendering ${templateName}:`, error);
+                res.status(500).render('error', {
+                    error: 'Failed to load page',
+                    user: req.user,
+                    isAuthenticated: req.isAuthenticated?.()
+                });
             }
-
-            if (templateName === 'commands') {
-                templateData.commands = commands;
-            }
-
-            res.render(templateName, templateData);
         };
 
         if (routeConfig.auth) {

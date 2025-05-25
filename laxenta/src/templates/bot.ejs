@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Dashboard - Premium</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="theme-dark">
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="floating-orb orb-1"></div>
+        <div class="floating-orb orb-2"></div>
+        <div class="floating-orb orb-3"></div>
+        <div class="floating-orb orb-4"></div>
+    </div>
+
+    <!-- Header with Theme Switcher -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <span>BotForge</span>
+            </div>
+            <div class="theme-switcher">
+                <button class="theme-btn active" data-theme="dark" title="Dark Theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="theme-btn" data-theme="light" title="Light Theme">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <button class="theme-btn" data-theme="blue" title="Ocean Theme">
+                    <i class="fas fa-water"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- User's Bots Section -->
+        <section class="section my-bots">
+            <div class="section-header">
+                <h2><i class="fas fa-user-robot"></i> My Bots</h2>
+                <button class="btn-primary" onclick="showCreateBotModal()">
+                    <i class="fas fa-plus"></i>
+                    Create New Bot
+                </button>
+            </div>
+            
+            <div class="bots-grid" id="userBotsGrid">
+                <!-- Bot cards will be generated here -->
+            </div>
+        </section>
+
+        <!-- Public Bots Section -->
+        <section class="section public-bots">
+            <div class="section-header">
+                <h2><i class="fas fa-globe"></i> Public Bots</h2>
+            </div>
+            
+            <div class="bots-grid" id="publicBotsGrid">
+                <!-- Public bot cards will be generated here -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Create Bot Modal -->
+    <div id="createBotModal" class="modal">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-magic"></i> Create New Bot</h2>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="createBotForm" onsubmit="createBot(event)">
+                <div class="form-group">
+                    <label><i class="fas fa-tag"></i> Bot Name</label>
+                    <input type="text" name="botName" placeholder="Enter bot name..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-key"></i> Discord Bot Token</label>
+                    <input type="text" name="botToken" placeholder="Your bot token..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-brain"></i> Bot Instructions</label>
+                    <textarea name="instruction" placeholder="Describe your bot's personality and behavior..." required></textarea>
+                </div>
+                
+                <div class="settings-section">
+                    <h3><i class="fas fa-cogs"></i> Advanced Settings</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>Temperature</label>
+                            <div class="slider-container">
+                                <input type="range" name="temperature" min="0" max="1" step="0.1" value="0.9" class="slider">
+                                <span class="slider-value">0.9</span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Presence Penalty</label>
+                            <div class="slider-container">
+                                <input type="range" name="presence_penalty" min="0" max="1" step="0.1" value="0.6" class="slider">
+                                <span class="slider-value">0.6</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="presence-section">
+                    <h3><i class="fas fa-eye"></i> Presence Settings</h3>
+                    <div class="presence-grid">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select name="status" class="select-custom">
+                                <option value="online">🟢 Online</option>
+                                <option value="idle">🟡 Idle</option>
+                                <option value="dnd">🔴 Do Not Disturb</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Activity</label>
+                            <input type="text" name="activity" placeholder="Playing with humans" value="with humans">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-magic"></i> Create Bot
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Sample data for demonstration
+        const sampleUserBots = [
+            { id: '1', name: 'ChatBot Pro', description: 'Advanced conversational AI bot', isRunning: true },
+            { id: '2', name: 'Music Master', description: 'Music streaming and playlist bot', isRunning: false },
+            { id: '3', name: 'Game Helper', description: 'Gaming assistance and stats tracking', isRunning: true }
+        ];
+
+        const samplePublicBots = [
+            { id: '1', name: 'Translator Bot', description: 'Multi-language translation service', inviteUrl: '#' },
+            { id: '2', name: 'Weather Bot', description: 'Real-time weather updates', inviteUrl: '#' },
+            { id: '3', name: 'Meme Generator', description: 'Create and share memes', inviteUrl: '#' }
+        ];
+
+        // Initialize the dashboard
+        function initDashboard() {
+            renderUserBots();
+            renderPublicBots();
+            initThemeSwitcher();
+            initSliders();
+        }
+
+        function renderUserBots() {
+            const grid = document.getElementById('userBotsGrid');
+            
+            if (sampleUserBots.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-robot empty-icon"></i>
+                        <h3>No bots yet!</h3>
+                        <p>Create your first bot to get started</p>
+                        <button class="btn-primary" onclick="showCreateBotModal()">
+                            <i class="fas fa-plus"></i> Create Your First Bot
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = sampleUserBots.map(bot => `
+                <div class="bot-card" data-bot-id="${bot.id}">
+                    <div class="bot-header">
+                        <div class="bot-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="bot-info">
+                            <h3>${bot.name}</h3>
+                            <p>${bot.description}</p>
+                        </div>
+                        <div class="status-indicator ${bot.isRunning ? 'online' : 'offline'}"></div>
+                    </div>
+                    
+                    <div class="bot-status">
+                        <span class="status-badge ${bot.isRunning ? 'running' : 'stopped'}">
+                            <i class="fas ${bot.isRunning ? 'fa-play' : 'fa-stop'}"></i>
+                            ${bot.isRunning ? 'Online' : 'Offline'}
+                        </span>
+                    </div>
+                    
+                    <div class="bot-actions">
+                        <button class="btn-action ${bot.isRunning ? 'btn-stop' : 'btn-start'}" onclick="toggleBot('${bot.id}', ${bot.isRunning})">
+                            <i class="fas ${bot.isRunning ? 'fa-stop' : 'fa-play'}"></i>
+                            ${bot.isRunning ? 'Stop' : 'Start'}
+                        </button>
+                        <button class="btn-action btn-edit" onclick="editBot('${bot.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-action btn-delete" onclick="deleteBot('${bot.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderPublicBots() {
+            const grid = document.getElementById('publicBotsGrid');
+            
+            if (samplePublicBots.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-globe empty-icon"></i>
+                        <h3>No public bots available</h3>
+                        <p>Check back later for community bots</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = samplePublicBots.map(bot => `
+                <div class="bot-card public">
+                    <div class="bot-header">
+                        <div class="bot-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="bot-info">
+                            <h3>${bot.name}</h3>
+                            <p>${bot.description}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bot-actions">
+                        <a href="${bot.inviteUrl}" class="btn-primary btn-invite">
+                            <i class="fas fa-plus-circle"></i>
+                            Add to Server
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Theme switcher
+        function initThemeSwitcher() {
+            const themeBtns = document.querySelectorAll('.theme-btn');
+            themeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const theme = btn.dataset.theme;
+                    document.body.className = `theme-${theme}`;
+                    
+                    themeBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+        }
+
+        // Slider functionality
+        function initSliders() {
+            const sliders = document.querySelectorAll('.slider');
+            sliders.forEach(slider => {
+                const valueSpan = slider.nextElementSibling;
+                slider.addEventListener('input', () => {
+                    valueSpan.textContent = slider.value;
+                });
+            });
+        }
+
+        // API functions (placeholder implementations)
+        async function createBot(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = new FormData(form);
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            submitBtn.disabled = true;
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Add new bot to sample data
+                const newBot = {
+                    id: Date.now().toString(),
+                    name: data.get('botName'),
+                    description: 'Newly created bot',
+                    isRunning: false
+                };
+                sampleUserBots.push(newBot);
+                
+                renderUserBots();
+                closeModal();
+                showNotification('Bot created successfully!', 'success');
+            } catch (error) {
+                showNotification('Failed to create bot', 'error');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function toggleBot(botId, isRunning) {
+            const action = isRunning ? 'stop' : 'start';
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Update bot status
+                const bot = sampleUserBots.find(b => b.id === botId);
+                if (bot) {
+                    bot.isRunning = !bot.isRunning;
+                    renderUserBots();
+                    showNotification(`Bot ${action}ed successfully!`, 'success');
+                }
+            } catch (error) {
+                showNotification(`Failed to ${action} bot`, 'error');
+            }
+        }
+
+        async function deleteBot(botId) {
+            if (!confirm('Are you sure you want to delete this bot? This action cannot be undone.')) return;
+            
+            try {
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Remove bot from sample data
+                const index = sampleUserBots.findIndex(b => b.id === botId);
+                if (index !== -1) {
+                    sampleUserBots.splice(index, 1);
+                    renderUserBots();
+                    showNotification('Bot deleted successfully!', 'success');
+                }
+            } catch (error) {
+                showNotification('Failed to delete bot', 'error');
+            }
+        }
+
+        function editBot(botId) {
+            showNotification('Edit functionality coming soon!', 'info');
+        }
+
+        // Modal functions
+        function showCreateBotModal() {
+            const modal = document.getElementById('createBotModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('createBotModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.15);
+            --border-radius: 16px;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Dark Theme */
+        .theme-dark {
+            --bg-primary: #0a0a0b;
+            --bg-secondary: #1a1a1b;
+            --bg-tertiary: #2d2d30;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --accent: #6366f1;
+            --accent-hover: #5855eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Light Theme */
+        .theme-light {
+            --bg-primary: #fafafa;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f5f5f5;
+            --text-primary: #1a1a1b;
+            --text-secondary: #6b7280;
+            --accent: #6366f1;
+            --accent-hover: #5855eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: rgba(0, 0, 0, 0.1);
+            --glass: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Blue Ocean Theme */
+        .theme-blue {
+            --bg-primary: #0c1222;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #0ea5e9;
+            --accent-hover: #0284c7;
+            --success: #06b6d4;
+            --danger: #f43f5e;
+            --warning: #f97316;
+            --border: rgba(14, 165, 233, 0.2);
+            --glass: rgba(14, 165, 233, 0.1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .floating-orb {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--accent), transparent);
+            filter: blur(40px);
+            animation: float 20s infinite ease-in-out;
+            opacity: 0.3;
+        }
+
+        .orb-1 {
+            width: 200px;
+            height: 200px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 150px;
+            height: 150px;
+            top: 60%;
+            right: 10%;
+            animation-delay: -7s;
+        }
+
+        .orb-3 {
+            width: 100px;
+            height: 100px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: -14s;
+        }
+
+        .orb-4 {
+            width: 120px;
+            height: 120px;
+            top: 30%;
+            right: 30%;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(20px, -20px) rotate(90deg); }
+            50% { transform: translate(-20px, 20px) rotate(180deg); }
+            75% { transform: translate(-20px, -20px) rotate(270deg); }
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            padding: 1rem 0;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .logo i {
+            font-size: 2rem;
+            background: linear-gradient(45deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-switcher {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--bg-secondary);
+            padding: 0.25rem;
+            border-radius: 50px;
+            border: 1px solid var(--border);
+        }
+
+        .theme-btn {
+            background: none;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 50%;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-btn:hover,
+        .theme-btn.active {
+            background: var(--accent);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 120px 2rem 2rem;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: linear-gradient(45deg, var(--text-primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(45deg, var(--accent), var(--accent-hover));
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            transform: translateY(-1px);
+        }
+
+        /* Bot Grid */
+        .bots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+        }
+
+        /* Bot Cards */
+        .bot-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bot-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(45deg, var(--accent), var(--success));
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .bot-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--accent);
+        }
+
+        .bot-card:hover::before {
+            opacity: 1;
+        }
+
+        .bot-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .bot-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, var(--accent), var(--success));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .bot-info {
+            flex: 1;
+        }
+
+        .bot-info h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+        }
+
+        .bot-info p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+        .status-indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .status-indicator.offline {
+            background: var(--text-secondary);
+        }
+
+        .bot-status {
+            margin-bottom: 1rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-badge.running {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-badge.stopped {
+            background: rgba(156, 163, 175, 0.1);
+            color: var(--text-secondary);
+            border: 1px solid rgba(156, 163, 175, 0.3);
+        }
+
+        .bot-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-action {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-start:hover {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .btn-stop:hover {
+            background: var(--warning);
+            color: white;
+            border-color: var(--warning);
+        }
+
+        .btn-edit:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .btn-delete:hover {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+
+        .btn-invite {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 4rem 2rem;
+            border: 2px dashed var(--border);
+            border-radius: var(--border-radius);
+            background: var(--glass);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .empty-state p {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            transform: scale(0.9) translateY(20px);
+            transition: var(--transition);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Form Styles */
+        form {
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .select-custom {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .select-custom:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Settings Section */
+        .settings-section,
+        .presence-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+        }
+
+        .settings-section h3,
+        .presence-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .setting-item label {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-tertiary);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: var(--accent-hover);
+            transform: scale(1.1);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+        }
+
+        .slider-value {
+            font-weight: 600;
+            color: var(--accent);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .presence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 100px;
+            right: 2rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 3000;
+            transform: translateX(400px);
+            transition: var(--transition);
+            box-shadow: var(--shadow-hover);
+            min-width: 300px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .notification.error {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .notification.info {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .notification i {
+            font-size: 1.25rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 100px 1rem 2rem;
+            }
+
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .bots-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+            }
+
+            .modal-header,
+            form {
+                padding: 1.5rem;
+            }
+
+            .settings-grid,
+            .presence-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-actions {
+                flex-direction: column-reverse;
+            }
+
+            .notification {
+                right: 1rem;
+                left: 1rem;
+                min-width: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo span {
+                display: none;
+            }
+
+            .theme-switcher {
+                gap: 0.25rem;
+            }
+
+            .theme-btn {
+                padding: 0.5rem;
+            }
+
+            .section-header h2 {
+                font-size: 1.5rem;
+            }
+
+            .bot-actions {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Scroll Effects */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Loading States */
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+
+        /* Advanced Animations */
+        .bot-card {
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        .bot-card:nth-child(2) { animation-delay: 0.1s; }
+        .bot-card:nth-child(3) { animation-delay: 0.2s; }
+        .bot-card:nth-child(4) { animation-delay: 0.3s; }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Hover Effects for Interactive Elements */
+        .bot-card .bot-avatar {
+            transition: var(--transition);
+        }
+
+        .bot-card:hover .bot-avatar {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .btn-primary {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-primary:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* Glass morphism enhancement */
+        .theme-dark .bot-card,
+        .theme-dark .modal-content,
+        .theme-dark .header {
+            background: rgba(26, 26, 27, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .theme-light .bot-card,
+        .theme-light .modal-content,
+        .theme-light .header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-blue .bot-card,
+        .theme-blue .modal-content,
+        .theme-blue .header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(14, 165, 233, 0.2);
+        }
+    </style>
+</body>
+</html>

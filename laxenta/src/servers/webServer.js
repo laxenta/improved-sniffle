@@ -1124,6 +1124,143 @@ this.app.get('/api/commands', (req, res) => {
 
     res.json([...slashCommands, ...prefixCommands]);
 });
+
+// Bot Management Endpoints
+this.app.get('/api/bots', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const templateData = await botManager.getBotTemplateData(req.user.discordId);
+        
+        res.json({
+            userBots: templateData.userBots,
+            publicBots: templateData.publicBots
+        });
+    } catch (error) {
+        console.error('Error fetching bots:', error);
+        res.status(500).json({ error: 'Failed to fetch bots' });
+    }
+});
+
+// Create new bot
+this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const botConfig = {
+            botName: req.body.name,
+            botToken: req.body.token,
+            model: req.body.model || 'gpt-3.5-turbo',
+            instruction: req.body.instruction,
+            isPublic: req.body.isPublic || false,
+            settings: req.body.settings || {},
+            presence: req.body.presence || {}
+        };
+
+        const newBot = await botManager.createBot(botConfig, req.user.discordId);
+        res.status(201).json(newBot);
+    } catch (error) {
+        console.error('Error creating bot:', error);
+        res.status(500).json({ error: 'Failed to create bot' });
+    }
+});
+
+// Update existing bot (owner only)
+this.app.put('/api/bots/:botId', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const isOwner = await botManager.isOwner(req.params.botId, req.user.discordId);
+
+        if (!isOwner) {
+            return res.status(403).json({ error: 'Unauthorized: Not bot owner' });
+        }
+
+        const updatedBot = await botManager.updateBot(req.params.botId, req.body, req.user.discordId);
+        res.json(updatedBot);
+    } catch (error) {
+        console.error('Error updating bot:', error);
+        res.status(500).json({ error: 'Failed to update bot' });
+    }
+});
+
+// Delete bot (owner only)
+this.app.delete('/api/bots/:botId', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const isOwner = await botManager.isOwner(req.params.botId, req.user.discordId);
+
+        if (!isOwner) {
+            return res.status(403).json({ error: 'Unauthorized: Not bot owner' });
+        }
+
+        await botManager.deleteBot(req.params.botId, req.user.discordId);
+        res.json({ success: true, message: 'Bot deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting bot:', error);
+        res.status(500).json({ error: 'Failed to delete bot' });
+    }
+});
+
+// Start bot (owner only)
+this.app.post('/api/bots/:botId/start', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const isOwner = await botManager.isOwner(req.params.botId, req.user.discordId);
+
+        if (!isOwner) {
+            return res.status(403).json({ error: 'Unauthorized: Not bot owner' });
+        }
+
+        await botManager.startBot(req.params.botId, req.user.discordId);
+        res.json({ success: true, message: 'Bot started successfully' });
+    } catch (error) {
+        console.error('Error starting bot:', error);
+        res.status(500).json({ error: 'Failed to start bot' });
+    }
+});
+
+// Stop bot (owner only)
+this.app.post('/api/bots/:botId/stop', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const isOwner = await botManager.isOwner(req.params.botId, req.user.discordId);
+
+        if (!isOwner) {
+            return res.status(403).json({ error: 'Unauthorized: Not bot owner' });
+        }
+
+        await botManager.stopBot(req.params.botId, req.user.discordId);
+        res.json({ success: true, message: 'Bot stopped successfully' });
+    } catch (error) {
+        console.error('Error stopping bot:', error);
+        res.status(500).json({ error: 'Failed to stop bot' });
+    }
+});
+
+// Get single bot details (public info if not owner)
+this.app.get('/api/bots/:botId', this.isAuthenticated.bind(this), async (req, res) => {
+    try {
+        const botManager = req.app.locals.botManager;
+        const bot = await botManager.getBotById(req.params.botId);
+        
+        if (!bot) {
+            return res.status(404).json({ error: 'Bot not found' });
+        }
+
+        const isOwner = bot.userId === req.user.discordId;
+        
+        // Return full details for owner, limited details for others
+        res.json(isOwner ? bot : {
+            id: bot.id,
+            name: bot.name,
+            description: bot.description,
+            isPublic: bot.isPublic,
+            createdAt: bot.createdAt,
+            inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${bot.id}&permissions=8&scope=bot%20applications.commands`
+        });
+    } catch (error) {
+        console.error('Error fetching bot:', error);
+        res.status(500).json({ error: 'Failed to fetch bot details' });
+    }
+});
     }
 
     async startServer() {

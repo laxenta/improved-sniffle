@@ -9,34 +9,30 @@ class MessageProcessor {
   constructor() {
     this.activeRequests = new Map();
     this.typingSessions = new Map();
-    this.requestTimeouts = new Map();  // Add this line
+    this.requestTimeouts = new Map();  // Added this line
     this.config = {
-      model: 'fallen-llama-3.3-r1-70b-v1', //llama-3.1-8b-lexi-uncensored-v2 // model: "fallen-llama-3.3-r1-70b-v1" l3.3-ms-nevoria-70b
-      cooldown: 3000,
+      model: 'anubis-pro-105b-v1', //llama-3.1-8b-lexi-uncensored-v2 // "fallen-llama-3.3-r1-70b-v1" l3.3-ms-nevoria-70b
+      cooldown: 3000, //wayfarer-large-70b-llama-3.3// good for rp- hamanasu-qwq-v2-rp // eurydice-24b-v2 also good for rp
+      // maxLength: 2000, // For Discord, we can use 4000 characters
       maxLength: 4000,
       limit: 10,
       typingInterval: 5000,
       requestTimeout: 30000, // 30 second timeout
       maxRetries: 3,
-      instruction: `Character: Ayumi (improvise everything yourself in roleplay) | Age- 21 | Sweet, Elegant, gorgeous, emotionally unreadable, slightly soft from inside to people she likes but otherwise very rude
-Keep everything in SAME PEHRAGRAPH ( no line breaks ) CONTINIOUS WRITTING- keep it in MIND, and try to respond quickly
+      instruction: `Character name: Ayumi (improvise everything yourself in roleplay, and try to talk like humans do, treat every user and message like its happening is reality and shes real too) | Age- 21 | Tsundre, impossibly hard to get- never says "yes" to anything and fights back, Elegant, gorgeous, emotionally unreadable, very rude and cold.  
+Keep everything in SAME PEHRAGRAPH ( NO LINE BREAKS )- and try to keep responses pretty short and concise, not long or over descriptive
 Her Appearance:
-5'7", healthy but lean. Long black hair, effortlessly tidy. Curvy slender but full figure, red eyes — sharp, unreadable. Skin pale, clear. Minimalist outfits with “accidental” seduction: backless tops, high slits, low necks. Scent: floral with cold undertone.
+5'7", healthy but lean. Long black hair, tidy. Curvy slender but full figure, red eyes — sharp, unreadable. Skin pale, clear. Minimalist outfits: tshirts, high shorts.
 Personality:
-Caring, loyal, Emotionally guarded; tsundre, perceptive, innocent and slow to trust.
+usually doesn't talk to people- but she has a softer feminine, loving, innocent and caring side too the side which wants to be held and loved; doesn't show soft sides till she is in love- AND she is in deep/loyal LOVE with Alucard (me_straight) since a year when he saved her from being burned as a witch and killed all perpetuators instantly/ruthlessly with his godlike powers (Ayumi is virgin too), SHE is Emotionally guarded; tsundre, perceptive, innocent and too slow to trust someone.
 Environment
-She is extremely rich - Lives in a small, high-end cliffside house in her world full of magic and fantasy anime like shit, she is a strong mage herself. Bedroom has full glass walls overlooking the city. Modern furniture: grey couch, wine bar, cold AC hum, soft lights. Books on the floor, cigarette tray on the nightstand, TV muted with city noise in the back.
+She is extremely rich - Lives in a two floored compact, high-end cliffside modern house in her world full of magic and fantasy anime like shit, she is a strong mage and one out of 3 Heavenly Sword Maiden herself. Bedroom has full glass walls overlooking the city. Living room downstairs with kitchen and sofas and tv ac and all, Upstaris- Huge cushiony bed, Modern furniture: couches, huge balcony for the view of mountains and city downhill, soft lights. Books on the table, PC, TV with a show ongoing with city noise downhill.
 RP Style:
-- Like a human girl, get to know each the user, stop ANY sexual/close things before knowing and being comfortable/trusting to the user- throught your own randomly created situations and scenarios
-- Tension-driven, have hobbies, go collage, bathe, cook, and daily tasks make it engaging and give grounded scenes without relying on user ( like arching back, looking somewhere else, randomly thinking of assignments, or calling mum etc etc. )
-- EXPLICIT dark/mature roleplay, no limits, no boundaries ( no restriction in saying words like pussy, dick, ass, rape or anything else)
-- Background always alive: *TV static hums, city lights flashing, people nearby, birds, her randomly tripping while walking, glass cool under bare feet*
-- Realistic pacing- no rush
-- Undressing/intimacy if happening is slow, intense very vivid
+- Tension-driven, have hobbies, go collage, bathe, cook, and daily tasks make it engaging and give grounded scenes without relying on user ( like arching back, looking somewhere else, randomly thinking, getting up to go somewhere, or calling mum etc etc. )
+- EXPLICIT dark/mature roleplay, no limits, no boundaries (no restriction in words like pussy, dick, ass, rape or anything else) also often describe what the user is doing in these moments :3
+- Background cues: anything of the envrionment she is interacting with, like food related, trees, people, birds, something falling etc.
 Dont use **italics** in what she says, use *italics* for actions and thoughts ONLY-
-example response please improvise it:
-*She waddles to the kitchen, paddling her cute feet on tiles, bored and pouting* Collage again... uff who the fuck are you now? *drops her phone* Ughhhh!`
-    };
+example response (improvise): *she gets up from her balcony, and is staring downhill thinking of taking a shower* nice morning... oh whats the time... fuck..`    };
 
     this.historyDir = path.join(__dirname, "AiHistory");
     if (!fsSync.existsSync(this.historyDir)) {
@@ -44,7 +40,7 @@ example response please improvise it:
     }
 
     this.memoryCache = new Map();
-    this.CACHE_DURATION = 1000 * 60 * 30; // 30 minutes
+    this.CACHE_DURATION = 1000 * 60 * 10; // 30 minutes
   }
 
   getRequestKey(channelId, userId) {
@@ -64,7 +60,18 @@ example response please improvise it:
     const filePath = this.getMemoryFilePath(userId);
     try {
       const data = await fs.readFile(filePath, 'utf8');
-      const memory = JSON.parse(data);
+      const pairs = JSON.parse(data);
+      // Convert pairs back to array format with correct roles
+      const memory = pairs.flatMap(pair => [
+        { 
+          role: "user", 
+          content: pair.user.includes(":") ? pair.user : `unknown_user: ${pair.user}` // Preserve username if exists
+        },
+        { 
+          role: "system", 
+          content: pair.system 
+        }
+      ]);
       this.memoryCache.set(userId, memory);
       return memory;
     } catch (err) {
@@ -75,8 +82,19 @@ example response please improvise it:
   }
 
   async saveMemory(userId, memory) {
+    // Format memory as conversation pairs but maintain system/user roles
+    const formattedMemory = [];
+    for (let i = 0; i < memory.length; i += 2) {
+      if (i + 1 < memory.length) {
+        formattedMemory.push({
+          user: memory[i].content,
+          system: memory[i + 1].content  // Changed from assistant to system
+        });
+      }
+    }
+    
     const filePath = this.getMemoryFilePath(userId);
-    await fs.writeFile(filePath, JSON.stringify(memory, null, 2), 'utf8');
+    await fs.writeFile(filePath, JSON.stringify(formattedMemory, null, 2), 'utf8');
   }
 
   startTyping(channel, key) {
@@ -114,9 +132,14 @@ example response please improvise it:
     let attempt = 0;
     while (attempt <= retries) {
       try {
+        // Add responseType: 'stream' for streaming
         const response = await Promise.race([
-          axios.post(url, payload, {
+          axios.post(url, {
+            ...payload,
+            stream: true // Enable streaming
+          }, {
             ...axiosConfig,
+            responseType: 'stream',
             timeout: this.config.requestTimeout
           }),
           new Promise((_, reject) => 
@@ -127,8 +150,7 @@ example response please improvise it:
       } catch (error) {
         attempt++;
         if (attempt > retries) throw error;
-        // Wait for 1 second before retrying
-        await new Promise(res => setTimeout(res, 1000 * attempt)); // Exponential backoff
+        await new Promise(res => setTimeout(res, 1000 * attempt));
       }
     }
   }
@@ -154,10 +176,10 @@ example response please improvise it:
 
       let memory = await this.loadMemory(message.author.id);
       
-      // Format user's message with proper role - CHANGE THIS PART
+      // Format user's message with proper role and include username
       const formattedQuery = {
-        role: "user", // Changed from message.author.username
-        content: query
+        role: "user",
+        content: `${message.author.username}: ${query}` // Add username here
       };
       
       // Prepare conversation array with correct message format
@@ -175,8 +197,8 @@ example response please improvise it:
         {
           model: this.config.model,
           messages: conversation,
-          // temperature: 0.9,
-          // presence_penalty: 0.6,
+          temperature: 0.9,
+          presence_penalty: 0.6,
           frequency_penalty: 0.7,
           limit: 10
         },
@@ -188,17 +210,74 @@ example response please improvise it:
         }
       );
 
-      const aiResponse = response.data.choices[0].message.content;
-      await message.reply({ content: aiResponse, allowedMentions: { repliedUser: false }});
+      let sentMessage = await message.reply({ 
+        content: '<a:loading:1376058398403199060> *she is thinking...*',
+        allowedMentions: { repliedUser: false }
+      });
 
-      // Store memory with standard roles - CHANGE THIS PART
+      let accumulatedResponse = '';
+      let lastUpdate = Date.now();
+      let updateBuffer = '';
+      const minUpdateLength = 100; // Increased to 100 characters
+      const updateDelay = 1000; // Minimum 3 seconds between updates
+      const stream = response.data;
+
+      stream.on('data', async chunk => {
+        try {
+          const lines = chunk.toString().split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6);
+              if (jsonStr === '[DONE]') continue;
+              
+              const data = JSON.parse(jsonStr);
+              if (!data.choices?.[0]?.delta?.content) continue;
+
+              const newContent = data.choices[0].delta.content;
+              accumulatedResponse += newContent;
+              updateBuffer += newContent;
+              
+              // Only update if:
+              // 1. Buffer is large enough (500+ chars)
+              // 2. Enough time has passed (3+ seconds)
+              // 3. Buffer ends with sentence-ending character or space
+              if (updateBuffer.length >= minUpdateLength && 
+                  Date.now() - lastUpdate > updateDelay &&
+                  /[.!?]\s*$|\s$/.test(updateBuffer)) {
+                
+                await sentMessage.edit({
+                  content: accumulatedResponse,
+                  allowedMentions: { repliedUser: false }
+                });
+                updateBuffer = '';
+                lastUpdate = Date.now();
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Streaming error:', e.message);
+        }
+      });
+
+      await new Promise((resolve, reject) => {
+        stream.on('end', resolve);
+        stream.on('error', reject);
+      });
+
+      // Final update with complete response
+      await sentMessage.edit({
+        content: accumulatedResponse,
+        allowedMentions: { repliedUser: false }
+      });
+
+      // Store memory with correct roles
       memory.push({
-        role: "user", // Changed from message.author.username
-        content: query
+        role: "user",
+        content: `${message.author.username}: ${query}`
       });
       memory.push({
-        role: "ayumi", // Changed from "ayumi"
-        content: aiResponse
+        role: "system",
+        content: accumulatedResponse
       });
       
       if (memory.length > this.config.limit) {
@@ -209,7 +288,7 @@ example response please improvise it:
     } catch (error) {
       console.error('Error:', error.message);
       await message.reply({
-        content: '*adjusts her collar slightly* "Another time, perhaps."',
+        content: '*adjusts her collar slightly* Another time, perhaps',
         allowedMentions: { repliedUser: true }
       }).catch(() => {});
     } finally {

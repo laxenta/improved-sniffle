@@ -22,34 +22,37 @@ class BotManager {
     }
 
     async createBot(config, userId) {
+        if (!config.name) {
+            throw new Error('Bot name is required');
+        }
+
         const botId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-        const botFileName = `${config.botName.toLowerCase().replace(/\s+/g, '-')}-${botId}.js`;
+        const botFileName = `${config.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${botId}.js`;
         const botFilePath = path.join(this.botsDir, botFileName);
 
         const botConfig = {
             id: botId,
             fileName: botFileName,
-            name: config.botName,
-            token: config.botToken,
-            model: config.model,
+            name: config.name,
+            token: config.token,
+            model: config.model || 'anubis-pro-105b-v1',
             instruction: config.instruction,
             userId: userId,
             settings: {
-                temperature: parseFloat(config.temperature || 0.9),
-                presence_penalty: parseFloat(config.presence_penalty || 0.6),
-                frequency_penalty: parseFloat(config.frequency_penalty || 0.7),
-                limit: parseInt(config.limit || 10),
-                maxLength: parseInt(config.maxLength || 4000),
-                typingInterval: parseInt(config.typingInterval || 5000),
-                requestTimeout: parseInt(config.requestTimeout || 30000),
-                maxRetries: parseInt(config.maxRetries || 3),
-                cooldown: parseInt(config.cooldown || 3000),
-                apiKey: config.apiKey || 'ek-3gmOPmvuljmrl4NQrohpnp1ryNXQG5bNn08zNuzhX6bcxBrndR'
+                temperature: parseFloat(config.settings?.temperature || 0.9),
+                presence_penalty: parseFloat(config.settings?.presence_penalty || 0.6),
+                frequency_penalty: parseFloat(config.settings?.frequency_penalty || 0.7),
+                limit: parseInt(config.settings?.limit || 10),
+                maxLength: parseInt(config.settings?.maxLength || 4000),
+                typingInterval: parseInt(config.settings?.typingInterval || 5000),
+                requestTimeout: parseInt(config.settings?.requestTimeout || 30000),
+                maxRetries: parseInt(config.settings?.maxRetries || 3),
+                cooldown: parseInt(config.settings?.cooldown || 3000)
             },
             presence: {
-                status: config.status || 'online',
-                activity: config.activity || 'with humans',
-                activityType: config.activityType || 'PLAYING'
+                status: config.presence?.status || 'online',
+                activity: config.presence?.activity || 'with humans',
+                activityType: config.presence?.activityType || 'PLAYING'
             },
             createdAt: new Date().toISOString(),
             isRunning: false
@@ -58,7 +61,7 @@ class BotManager {
         // Generate and save bot code
         await this.generateBotCode(botFilePath, botConfig);
         
-        // Save bot config as JSON comment at the top of the file
+        // Save bot config
         await this.saveBotConfig(botFilePath, botConfig);
 
         return botConfig;
@@ -648,6 +651,17 @@ process.on('SIGINT', () => {
             }
         });
 
+        // Create bot route
+        router.post('/bots/create', isAuthenticated, async (req, res) => {
+            try {
+                const bot = await this.createBot(req.body, req.user.discordId);
+                res.json(bot);
+            } catch (error) {
+                console.error('Error creating bot:', error);
+                res.status(500).json({ error: error.message });
+            }
+        });
+
         // Bot edit route
         router.get('/bots/edit/:id', isAuthenticated, async (req, res) => {
             try {
@@ -739,37 +753,6 @@ process.on('SIGINT', () => {
                 res.status(500).json({ error: error.message });
             }
         });
-
-        // Start bot
-        router.post('/bots/:id/start', isAuthenticated, async (req, res) => {
-            try {
-                const isOwner = await this.isOwner(req.params.id, req.user.discordId);
-                if (!isOwner) {
-                    return res.status(403).json({ error: 'Not authorized' });
-                }
-                
-                await this.startBot(req.params.id, req.user.discordId);
-                res.json({ success: true });
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
-        // Stop bot
-        router.post('/bots/:id/stop', isAuthenticated, async (req, res) => {
-            try {
-                const isOwner = await this.isOwner(req.params.id, req.user.discordId);
-                if (!isOwner) {
-                    return res.status(403).json({ error: 'Not authorized' });
-                }
-                
-                await this.stopBot(req.params.id, req.user.discordId);
-                res.json({ success: true });
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        });
-
         return router;
     }
 

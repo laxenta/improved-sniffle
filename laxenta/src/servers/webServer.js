@@ -1125,6 +1125,22 @@ this.app.get('/api/commands', (req, res) => {
     res.json([...slashCommands, ...prefixCommands]);
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Bot Management Endpoints
 this.app.get('/api/bots', this.isAuthenticated.bind(this), async (req, res) => {
     try {
@@ -1144,22 +1160,30 @@ this.app.get('/api/bots', this.isAuthenticated.bind(this), async (req, res) => {
 // Create new bot
 this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, res) => {
     try {
+        console.log('Received bot creation request:', req.body); // Debug log
+
         const botManager = req.app.locals.botManager;
-        const botConfig = {
-            botName: req.body.name,
-            botToken: req.body.token,
-            model: req.body.model || 'gpt-3.5-turbo',
+        if (!botManager) {
+            throw new Error('Bot manager not initialized');
+        }
+
+        if (!req.body.name) {
+            throw new Error('Bot name is required');
+        }
+
+        const newBot = await botManager.createBot({
+            name: req.body.name,
+            token: req.body.token,
+            model: req.body.model || 'anubis-pro-105b-v1',
             instruction: req.body.instruction,
-            isPublic: req.body.isPublic || false,
             settings: req.body.settings || {},
             presence: req.body.presence || {}
-        };
+        }, req.user.discordId);
 
-        const newBot = await botManager.createBot(botConfig, req.user.discordId);
         res.status(201).json(newBot);
     } catch (error) {
         console.error('Error creating bot:', error);
-        res.status(500).json({ error: 'Failed to create bot' });
+        res.status(500).json({ error: error.message || 'Failed to create bot' });
     }
 });
 
@@ -1196,42 +1220,6 @@ this.app.delete('/api/bots/:botId', this.isAuthenticated.bind(this), async (req,
     } catch (error) {
         console.error('Error deleting bot:', error);
         res.status(500).json({ error: 'Failed to delete bot' });
-    }
-});
-
-// Start bot (owner only)
-this.app.post('/api/bots/:botId/start', this.isAuthenticated.bind(this), async (req, res) => {
-    try {
-        const botManager = req.app.locals.botManager;
-        const isOwner = await botManager.isOwner(req.params.botId, req.user.discordId);
-
-        if (!isOwner) {
-            return res.status(403).json({ error: 'Unauthorized: Not bot owner' });
-        }
-
-        await botManager.startBot(req.params.botId, req.user.discordId);
-        res.json({ success: true, message: 'Bot started successfully' });
-    } catch (error) {
-        console.error('Error starting bot:', error);
-        res.status(500).json({ error: 'Failed to start bot' });
-    }
-});
-
-// Stop bot (owner only)
-this.app.post('/api/bots/:botId/stop', this.isAuthenticated.bind(this), async (req, res) => {
-    try {
-        const botManager = req.app.locals.botManager;
-        const isOwner = await botManager.isOwner(req.params.botId, req.user.discordId);
-
-        if (!isOwner) {
-            return res.status(403).json({ error: 'Unauthorized: Not bot owner' });
-        }
-
-        await botManager.stopBot(req.params.botId, req.user.discordId);
-        res.json({ success: true, message: 'Bot stopped successfully' });
-    } catch (error) {
-        console.error('Error stopping bot:', error);
-        res.status(500).json({ error: 'Failed to stop bot' });
     }
 });
 

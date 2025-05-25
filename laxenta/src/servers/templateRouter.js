@@ -97,8 +97,9 @@ async function createTemplateData(req, client, botManager) {
 }
 
 function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
-    // Initialize BotManager
+    // Initialize BotManager and add it to app.locals so it's accessible everywhere
     const botManager = new BotManager();
+    app.locals.botManager = botManager;
     
     const ejsFiles = fs.readdirSync(templatesDir)
         .filter(file => {
@@ -134,7 +135,7 @@ function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
                 const templateData = await createTemplateData(
                     req, 
                     client, 
-                    routeConfig.requireBotData ? botManager : null
+                    routeConfig.requireBotData ? app.locals.botManager : null
                 );
                 
                 res.render(templateName, {
@@ -143,18 +144,10 @@ function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
                 });
             } catch (error) {
                 console.error(`Error rendering ${templateName}:`, error);
-                res.status(500).render(templateName, {
+                res.status(500).render('error', {
                     user: req.user,
                     isAuthenticated: req.isAuthenticated?.(),
-                    error: 'An error occurred while loading the page',
-                    userBots: [],
-                    publicBots: [],
-                    stats: {
-                        totalBots: 0,
-                        activeBots: 0,
-                        servers: 0,
-                        users: 0
-                    }
+                    error: 'An error occurred while loading the page'
                 });
             }
         };

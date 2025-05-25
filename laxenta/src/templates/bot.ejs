@@ -37,6 +37,65 @@
         </div>
     </header>
 
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <a href="/" class="nav-logo">
+                <i class="fas fa-robot"></i>
+                <span>BotForge</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <a href="/bots" class="nav-link active">
+                    <i class="fas fa-robot"></i> Bots
+                </a>
+                <% if (isAuthenticated) { %>
+                    <a href="/dashboard" class="nav-link">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                <% } %>
+            </div>
+        </div>
+        
+        <div class="nav-right">
+            <% if (isAuthenticated && user) { %>
+                <div class="user-menu">
+                    <button class="user-menu-btn" onclick="toggleUserMenu()">
+                        <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png` : '/images/default-avatar.png' %>" 
+                             alt="<%= user.username %>" 
+                             class="user-avatar">
+                        <span><%= user.username %></span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user"></i> Profile
+                        </a>
+                        <% if (hasSpotify) { %>
+                            <a href="/music" class="dropdown-item">
+                                <i class="fab fa-spotify"></i> Music
+                            </a>
+                        <% } %>
+                        <a href="/settings" class="dropdown-item">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                        <hr class="dropdown-divider">
+                        <button onclick="logout()" class="dropdown-item text-danger">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                </div>
+            <% } else { %>
+                <a href="/auth/discord" class="btn-login">
+                    <i class="fab fa-discord"></i>
+                    Login with Discord
+                </a>
+            <% } %>
+        </div>
+    </nav>
+
     <div class="container">
         <!-- User's Bots Section -->
         <section class="section my-bots">
@@ -49,7 +108,48 @@
             </div>
             
             <div class="bots-grid" id="userBotsGrid">
-                <!-- Bot cards will be generated here -->
+                <% if (typeof userBots !== 'undefined' && userBots.length > 0) { %>
+                    <% userBots.forEach(bot => { %>
+                        <div class="bot-card" data-bot-id="<%= bot.id %>">
+                            <div class="bot-header">
+                                <div class="bot-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="bot-info">
+                                    <h3><%= bot.name %></h3>
+                                    <p><%= bot.description || 'No description' %></p>
+                                </div>
+                                <div class="status-indicator <%= bot.isRunning ? 'online' : 'offline' %>"></div>
+                            </div>
+                            
+                            <div class="bot-status">
+                                <span class="status-badge <%= bot.isRunning ? 'running' : 'stopped' %>">
+                                    <i class="fas <%= bot.isRunning ? 'fa-play' : 'fa-stop' %>"></i>
+                                    <%= bot.isRunning ? 'Online' : 'Offline' %>
+                                </span>
+                            </div>
+                            
+                            <div class="bot-actions">
+                         
+                                <button class="btn-action btn-edit" onclick="editBot('<%= bot.id %>')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-action btn-delete" onclick="deleteBot('<%= bot.id %>')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="empty-state">
+                        <i class="fas fa-robot empty-icon"></i>
+                        <h3>No bots yet!</h3>
+                        <p>Create your first bot to get started</p>
+                        <button class="btn-primary" onclick="showCreateBotModal()">
+                            <i class="fas fa-plus"></i> Create Your First Bot
+                        </button>
+                    </div>
+                <% } %>
             </div>
         </section>
 
@@ -60,7 +160,35 @@
             </div>
             
             <div class="bots-grid" id="publicBotsGrid">
-                <!-- Public bot cards will be generated here -->
+                <% if (typeof publicBots !== 'undefined' && publicBots.length > 0) { %>
+                    <% publicBots.forEach(bot => { %>
+                        <div class="bot-card public">
+                            <div class="bot-header">
+                                <div class="bot-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="bot-info">
+                                    <h3><%= bot.name %></h3>
+                                    <p><%= bot.description || 'No description' %></p>
+                                </div>
+                            </div>
+                            
+                            <div class="bot-actions">
+                                <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.id %>&scope=bot&permissions=8" 
+                                   class="btn-primary btn-invite" target="_blank">
+                                    <i class="fas fa-plus-circle"></i>
+                                    Add to Server
+                                </a>
+                            </div>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="empty-state">
+                        <i class="fas fa-globe empty-icon"></i>
+                        <h3>No public bots available</h3>
+                        <p>Check back later for community bots</p>
+                    </div>
+                <% } %>
             </div>
         </section>
     </div>
@@ -142,256 +270,193 @@
         </div>
     </div>
 
+    <!-- Edit Bot Modal -->
+    <div id="editBotModal" class="modal">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-robot"></i> Edit Bot</h2>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="editBotForm" onsubmit="updateBot(event)">
+                <input type="hidden" id="editBotId">
+                
+                <div class="form-group">
+                    <label><i class="fas fa-tag"></i> Bot Name</label>
+                    <input type="text" id="editBotName" placeholder="Enter bot name..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-key"></i> Discord Bot Token</label>
+                    <input type="text" id="editBotToken" placeholder="Your bot token..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-brain"></i> Bot Instructions</label>
+                    <textarea id="editBotInstruction" placeholder="Describe your bot's personality and behavior..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-robot"></i> Model</label>
+                    <select id="editBotModel" class="select-custom">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editBotPublic">
+                        <i class="fas fa-globe"></i> Public Bot
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // Sample data for demonstration
-        const sampleUserBots = [
-            { id: '1', name: 'ChatBot Pro', description: 'Advanced conversational AI bot', isRunning: true },
-            { id: '2', name: 'Music Master', description: 'Music streaming and playlist bot', isRunning: false },
-            { id: '3', name: 'Game Helper', description: 'Gaming assistance and stats tracking', isRunning: true }
-        ];
+document.addEventListener('DOMContentLoaded', () => {
+    // Get modal elements
+    const createBotModal = document.getElementById('createBotModal');
+    const editBotModal = document.getElementById('editBotModal');
 
-        const samplePublicBots = [
-            { id: '1', name: 'Translator Bot', description: 'Multi-language translation service', inviteUrl: '#' },
-            { id: '2', name: 'Weather Bot', description: 'Real-time weather updates', inviteUrl: '#' },
-            { id: '3', name: 'Meme Generator', description: 'Create and share memes', inviteUrl: '#' }
-        ];
+    // Modal control functions
+    window.showCreateBotModal = () => {
+        if (createBotModal) createBotModal.style.display = 'block';
+    };
 
-        // Initialize the dashboard
-        function initDashboard() {
-            renderUserBots();
-            renderPublicBots();
-            initThemeSwitcher();
-            initSliders();
+    window.closeModal = () => {
+        if (createBotModal) createBotModal.style.display = 'none';
+        if (editBotModal) editBotModal.style.display = 'none';
+    };
+
+    // Handle create bot form submission
+    document.getElementById('createBotForm')?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        
+        try {
+            const formData = {
+                botName: event.target.botName.value,
+                botToken: event.target.botToken.value,
+                instruction: event.target.instruction.value,
+                temperature: parseFloat(event.target.temperature.value),
+                presence_penalty: parseFloat(event.target.presence_penalty.value),
+                status: event.target.status.value,
+                activity: event.target.activity.value,
+                model: 'gpt-3.5-turbo' // Default model
+            };
+
+            const response = await fetch('/api/bots/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) throw new Error('Failed to create bot');
+
+            window.location.reload();
+        } catch (error) {
+            console.error('Error creating bot:', error);
+            alert('Failed to create bot: ' + error.message);
         }
+    });
 
-        function renderUserBots() {
-            const grid = document.getElementById('userBotsGrid');
+    // Bot action handlers
+    window.editBot = async (botId) => {
+        try {
+            const response = await fetch(`/api/bots/${botId}`);
+            const bot = await response.json();
             
-            if (sampleUserBots.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-robot empty-icon"></i>
-                        <h3>No bots yet!</h3>
-                        <p>Create your first bot to get started</p>
-                        <button class="btn-primary" onclick="showCreateBotModal()">
-                            <i class="fas fa-plus"></i> Create Your First Bot
-                        </button>
-                    </div>
-                `;
-                return;
+            if (editBotModal) {
+                document.getElementById('editBotId').value = bot.id;
+                document.getElementById('editBotName').value = bot.name;
+                document.getElementById('editBotToken').value = bot.token || '';
+                document.getElementById('editBotInstruction').value = bot.instruction || '';
+                document.getElementById('editBotPublic').checked = bot.isPublic || false;
+                editBotModal.style.display = 'block';
             }
-
-            grid.innerHTML = sampleUserBots.map(bot => `
-                <div class="bot-card" data-bot-id="${bot.id}">
-                    <div class="bot-header">
-                        <div class="bot-avatar">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <div class="bot-info">
-                            <h3>${bot.name}</h3>
-                            <p>${bot.description}</p>
-                        </div>
-                        <div class="status-indicator ${bot.isRunning ? 'online' : 'offline'}"></div>
-                    </div>
-                    
-                    <div class="bot-status">
-                        <span class="status-badge ${bot.isRunning ? 'running' : 'stopped'}">
-                            <i class="fas ${bot.isRunning ? 'fa-play' : 'fa-stop'}"></i>
-                            ${bot.isRunning ? 'Online' : 'Offline'}
-                        </span>
-                    </div>
-                    
-                    <div class="bot-actions">
-                        <button class="btn-action ${bot.isRunning ? 'btn-stop' : 'btn-start'}" onclick="toggleBot('${bot.id}', ${bot.isRunning})">
-                            <i class="fas ${bot.isRunning ? 'fa-stop' : 'fa-play'}"></i>
-                            ${bot.isRunning ? 'Stop' : 'Start'}
-                        </button>
-                        <button class="btn-action btn-edit" onclick="editBot('${bot.id}')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action btn-delete" onclick="deleteBot('${bot.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+        } catch (error) {
+            console.error('Error loading bot details:', error);
+            alert('Failed to load bot details');
         }
+    };
 
-        function renderPublicBots() {
-            const grid = document.getElementById('publicBotsGrid');
-            
-            if (samplePublicBots.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-globe empty-icon"></i>
-                        <h3>No public bots available</h3>
-                        <p>Check back later for community bots</p>
-                    </div>
-                `;
-                return;
-            }
+    window.deleteBot = async (botId) => {
+        if (!confirm('Are you sure you want to delete this bot?')) return;
 
-            grid.innerHTML = samplePublicBots.map(bot => `
-                <div class="bot-card public">
-                    <div class="bot-header">
-                        <div class="bot-avatar">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <div class="bot-info">
-                            <h3>${bot.name}</h3>
-                            <p>${bot.description}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="bot-actions">
-                        <a href="${bot.inviteUrl}" class="btn-primary btn-invite">
-                            <i class="fas fa-plus-circle"></i>
-                            Add to Server
-                        </a>
-                    </div>
-                </div>
-            `).join('');
+        try {
+            const response = await fetch(`/api/bots/${botId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error('Failed to delete bot');
+            window.location.reload();
+        } catch (error) {
+            console.error('Error deleting bot:', error);
+            alert('Failed to delete bot: ' + error.message);
         }
+    };
 
-        // Theme switcher
-        function initThemeSwitcher() {
-            const themeBtns = document.querySelectorAll('.theme-btn');
-            themeBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const theme = btn.dataset.theme;
-                    document.body.className = `theme-${theme}`;
-                    
-                    themeBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                });
+    window.toggleBot = async (botId, action) => {
+        try {
+            const response = await fetch(`/api/bots/${botId}/${action}`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) throw new Error(`Failed to ${action} bot`);
+            window.location.reload();
+        } catch (error) {
+            console.error(`Error ${action}ing bot:`, error);
+            alert(`Failed to ${action} bot: ` + error.message);
+        }
+    };
+
+    // Theme switcher
+    document.querySelectorAll('.theme-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            document.body.className = `theme-${button.dataset.theme}`;
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            localStorage.setItem('theme', button.dataset.theme);
+        });
+    });
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.className = `theme-${savedTheme}`;
+    document.querySelector(`.theme-btn[data-theme="${savedTheme}"]`)?.classList.add('active');
+
+    // Range input value display
+    document.querySelectorAll('input[type="range"]').forEach(input => {
+        const valueDisplay = input.parentElement.querySelector('.slider-value');
+        if (valueDisplay) {
+            input.addEventListener('input', () => {
+                valueDisplay.textContent = input.value;
             });
         }
-
-        // Slider functionality
-        function initSliders() {
-            const sliders = document.querySelectorAll('.slider');
-            sliders.forEach(slider => {
-                const valueSpan = slider.nextElementSibling;
-                slider.addEventListener('input', () => {
-                    valueSpan.textContent = slider.value;
-                });
-            });
-        }
-
-        // API functions (placeholder implementations)
-        async function createBot(event) {
-            event.preventDefault();
-            const form = event.target;
-            const data = new FormData(form);
-            
-            // Show loading state
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-            submitBtn.disabled = true;
-            
-            try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Add new bot to sample data
-                const newBot = {
-                    id: Date.now().toString(),
-                    name: data.get('botName'),
-                    description: 'Newly created bot',
-                    isRunning: false
-                };
-                sampleUserBots.push(newBot);
-                
-                renderUserBots();
-                closeModal();
-                showNotification('Bot created successfully!', 'success');
-            } catch (error) {
-                showNotification('Failed to create bot', 'error');
-            } finally {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        }
-
-        async function toggleBot(botId, isRunning) {
-            const action = isRunning ? 'stop' : 'start';
-            
-            try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Update bot status
-                const bot = sampleUserBots.find(b => b.id === botId);
-                if (bot) {
-                    bot.isRunning = !bot.isRunning;
-                    renderUserBots();
-                    showNotification(`Bot ${action}ed successfully!`, 'success');
-                }
-            } catch (error) {
-                showNotification(`Failed to ${action} bot`, 'error');
-            }
-        }
-
-        async function deleteBot(botId) {
-            if (!confirm('Are you sure you want to delete this bot? This action cannot be undone.')) return;
-            
-            try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Remove bot from sample data
-                const index = sampleUserBots.findIndex(b => b.id === botId);
-                if (index !== -1) {
-                    sampleUserBots.splice(index, 1);
-                    renderUserBots();
-                    showNotification('Bot deleted successfully!', 'success');
-                }
-            } catch (error) {
-                showNotification('Failed to delete bot', 'error');
-            }
-        }
-
-        function editBot(botId) {
-            showNotification('Edit functionality coming soon!', 'info');
-        }
-
-        // Modal functions
-        function showCreateBotModal() {
-            const modal = document.getElementById('createBotModal');
-            modal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('createBotModal');
-            modal.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-
-        // Notification system
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.innerHTML = `
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                <span>${message}</span>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => notification.classList.add('show'), 100);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', initDashboard);
+    });
+});
     </script>
 
+    <!-- Styles -->
     <style>
+   
+
+        /* ehheheeh */
         * {
             margin: 0;
             padding: 0;
@@ -466,6 +531,109 @@
             overflow-x: hidden;
         }
 
+
+             .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .nav-left, .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: var(--surface-3);
+            color: var(--text-primary);
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            background: var(--surface-3);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--surface-2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-item:hover {
+            background: var(--surface-3);
+            color: var(--text-primary);
+        }
         /* Animated Background */
         .bg-animation {
             position: fixed;
@@ -663,6 +831,40 @@
         .btn-secondary:hover {
             background: var(--bg-secondary);
             transform: translateY(-1px);
+        }
+
+        .btn-login {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: #5865F2;
+            color: white;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .btn-login:hover {
+            background: #4752c4;
+            transform: translateY(-2px);
+        }
+
+        /* Divider */
+        .dropdown-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 0.5rem 0;
+        }
+
+        .text-danger {
+            color: var(--danger) !important;
+        }
+
+        .text-danger:hover {
+            background: var(--danger) !important;
+            color: white !important;
         }
 
         /* Bot Grid */
@@ -870,18 +1072,13 @@
 
         /* Modal */
         .modal {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: var(--transition);
+            background-color: rgba(0,0,0,0.5);
         }
 
         .modal.show {
@@ -900,21 +1097,12 @@
         }
 
         .modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius);
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            transform: scale(0.9) translateY(20px);
-            transition: var(--transition);
-            box-shadow: var(--shadow-hover);
-        }
-
-        .modal.show .modal-content {
-            transform: scale(1) translateY(0);
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
         }
 
         .modal-header {
@@ -952,6 +1140,9 @@
 
         /* Form Styles */
         form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
             padding: 2rem;
         }
 

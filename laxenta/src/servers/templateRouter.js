@@ -32,13 +32,14 @@ async function createTemplateData(req, client, botManager) {
     // Combine both command types
     const allCommands = [...slashCommands, ...prefixCommands];
 
-    // Base data object
+    // Base data object with error handling
     const baseData = {
         botName: client?.user?.username || 'Discord Bot',
         user: req.user,
         isAuthenticated: isAuth,
         hasSpotify: hasSpotify,
         spotifyProfile: hasSpotify ? currentSession.spotify.profile : null,
+        error: null, // Add this line
         avatar: client?.user?.displayAvatarURL?.({ size: 1024 }),
         avatarURL: 'https://static0.anpoimages.com/wordpress/wp-content/uploads/2024/05/discord-3-ap24-hero.jpg',
         clientId: process.env.CLIENT_ID,
@@ -59,7 +60,7 @@ async function createTemplateData(req, client, botManager) {
         botAvatar: client?.user?.displayAvatarURL?.({ size: 1024 }) || 'https://images-ext-1.discordapp.net/external/Vj5XAuCV3kpUCA121vpFLT_8Xo-EonGppjyCNaCd6Pw/%3Fsize%3D1024/https/cdn.discordapp.com/avatars/1107155830274523136/e84dd5b59ab14bcf7685a582db0a920e.webp?format=webp&width=374&height=374',
     };
 
-    // Add bot-specific data if botManager is provided
+    // Add bot-specific data if botManager exists
     if (botManager && req.user) {
         try {
             const userBots = await botManager.getUserBots(req.user.discordId);
@@ -68,20 +69,26 @@ async function createTemplateData(req, client, botManager) {
             return {
                 ...baseData,
                 userBots: userBots || [],
-                publicBots: publicBots.filter(bot => bot.isPublic) || [],
+                publicBots: publicBots?.filter(bot => bot.isPublic) || [],
                 stats: {
-                    ...baseData.stats,
-                    totalBots: userBots.length,
-                    activeBots: userBots.filter(bot => bot.isRunning).length
+                    totalBots: userBots?.length || 0,
+                    activeBots: userBots?.filter(bot => bot.isRunning)?.length || 0,
+                    // ... other stats
                 }
             };
         } catch (error) {
             console.error('Error loading bot data:', error);
             return {
                 ...baseData,
+                error: 'Failed to load bot data',
                 userBots: [],
                 publicBots: [],
-                error: 'Failed to load bots'
+                stats: {
+                    totalBots: 0,
+                    activeBots: 0,
+                    servers: 0,
+                    users: 0
+                }
             };
         }
     }
@@ -124,20 +131,30 @@ function generateTemplateRoutes(app, templatesDir, client, isAuthenticated) {
 
         const routeHandler = async (req, res) => {
             try {
-                // Get template data with bot manager for bot routes
                 const templateData = await createTemplateData(
                     req, 
                     client, 
                     routeConfig.requireBotData ? botManager : null
                 );
-
-                res.render(templateName, templateData);
+                
+                res.render(templateName, {
+                    ...templateData,
+                    error: req.query.error || templateData.error || null
+                });
             } catch (error) {
                 console.error(`Error rendering ${templateName}:`, error);
-                res.status(500).render('error', {
-                    error: 'Failed to load page',
+                res.status(500).render(templateName, {
                     user: req.user,
-                    isAuthenticated: req.isAuthenticated?.()
+                    isAuthenticated: req.isAuthenticated?.(),
+                    error: 'An error occurred while loading the page',
+                    userBots: [],
+                    publicBots: [],
+                    stats: {
+                        totalBots: 0,
+                        activeBots: 0,
+                        servers: 0,
+                        users: 0
+                    }
                 });
             }
         };

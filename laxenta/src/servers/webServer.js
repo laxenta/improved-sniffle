@@ -1157,10 +1157,20 @@ this.app.get('/api/bots', this.isAuthenticated.bind(this), async (req, res) => {
     }
 });
 
-// Create new bot
+// Create new bot - Update the authentication check
 this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, res) => {
     try {
-        console.log('Received bot creation request:', req.body); // Debug log
+        // Check if user is authenticated
+        if (!req.isAuthenticated() || !req.user) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        console.log('Authenticated user:', {
+            id: req.user.discordId,
+            username: req.user.username
+        });
+
+        console.log('Received bot creation request:', req.body);
 
         const botManager = req.app.locals.botManager;
         if (!botManager) {
@@ -1171,11 +1181,16 @@ this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, r
             throw new Error('Bot name is required');
         }
 
+        // Validate token format
+        if (!req.body.token || !/^[\w-]{24}\.[\w-]{6}\.[\w-]{27}$/.test(req.body.token)) {
+            throw new Error('Invalid bot token format');
+        }
+
         const newBot = await botManager.createBot({
             name: req.body.name,
             token: req.body.token,
             model: req.body.model || 'anubis-pro-105b-v1',
-            instruction: req.body.instruction,
+            instruction: req.body.instruction || '',
             settings: req.body.settings || {},
             presence: req.body.presence || {}
         }, req.user.discordId);
@@ -1183,7 +1198,14 @@ this.app.post('/api/bots/create', this.isAuthenticated.bind(this), async (req, r
         res.status(201).json(newBot);
     } catch (error) {
         console.error('Error creating bot:', error);
-        res.status(500).json({ error: error.message || 'Failed to create bot' });
+        res.status(500).json({ 
+            error: error.message || 'Failed to create bot',
+            auth: {
+                isAuthenticated: req.isAuthenticated?.(),
+                hasUser: !!req.user,
+                userId: req.user?.discordId
+            }
+        });
     }
 });
 

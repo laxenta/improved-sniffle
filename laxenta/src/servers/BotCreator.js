@@ -69,6 +69,7 @@ class BotManager {
     }
 
     async generateBotCode(filePath, config) {
+        // Remove dependencies on client.user
         const botCode = `/*
 BOT_CONFIG:
 ${JSON.stringify(config, null, 2)}
@@ -79,7 +80,6 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 
-const API_KEY = '${config.settings.apiKey}';
 const MEMORY_DIR = path.join(__dirname, 'memory');
 
 class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
@@ -90,9 +90,17 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.MessageContent,
-                GatewayIntentBits.GuildMembers
+                GatewayIntentBits.GuildMembers,
+                GatewayIntentBits.DirectMessages
             ]
         });
+
+        // Initialize missing properties first
+        this.memoryCache = new Map();
+        this.activeRequests = new Map();
+        this.typingSessions = new Map();
+        this.requestTimeouts = new Map();
+        this.debug = true;
 
         this.config = {
             model: '${config.model}',
@@ -108,18 +116,14 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
             cooldown: ${config.settings.cooldown}
         };
 
-        this.activeRequests = new Map();
-        this.typingSessions = new Map();
-        this.requestTimeouts = new Map();
-        this.memoryCache = new Map();
-        this.CACHE_DURATION = 1000 * 60 * 10;
-        
         this.setupEventHandlers();
     }
 
     setupEventHandlers() {
         this.client.on('ready', () => {
-            console.log(\`\${this.client.user.tag} is online!\`);
+            console.log(\`Bot \${this.client.user.tag} is ready!\`);
+            
+            // Set presence after bot is ready
             this.client.user.setPresence({
                 status: '${config.presence.status}',
                 activities: [{
@@ -130,10 +134,46 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
         });
 
         this.client.on('messageCreate', async (message) => {
+            // Don't respond to other bots
             if (message.author.bot) return;
-            if (message.mentions.users.has(this.client.user.id) || message.channel.type === 'DM') {
-                await this.processMessage(message);
+
+            // Only respond if bot is mentioned or in DMs
+            if (!message.mentions.has(this.client.user) && message.channel.type !== 'DM') return;
+
+            // Remove bot mention from message content
+            let content = message.content;
+            if (message.mentions.has(this.client.user)) {
+                content = content.replace(/<@!?${this.client.user.id}>/g, '').trim();
             }
+
+            // Don't process empty messages
+            if (!content) {
+                await message.reply("Hello! How can I help you?");
+                return;
+            }
+
+            try {
+                await this.processMessage(message, content);
+            } catch (error) {
+                console.error('Error processing message:', error);
+                await message.reply({
+                    content: 'An error occurred while processing your message. Please try again.',
+                    allowedMentions: { repliedUser: true }
+                }).catch(console.error);
+            }
+        });
+
+        // Add error event handlers
+        this.client.on('error', error => {
+            console.error('Discord client error:', error);
+        });
+
+        this.client.on('warn', warning => {
+            console.warn('Discord client warning:', warning);
+        });
+
+        process.on('unhandledRejection', error => {
+            console.error('Unhandled promise rejection:', error);
         });
     }
 
@@ -236,29 +276,23 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
         }
     }
 
-    async processMessage(message) {
+    async processMessage(message, content) {
         const key = this.getRequestKey(message.channel.id, message.author.id);
-        if (this.activeRequests.has(key)) return;
+        
+        if (this.activeRequests.has(key)) {
+            await message.reply("I'm still processing your last message! Please wait.");
+            return;
+        }
+        
         this.activeRequests.set(key, true);
 
         try {
             this.startTyping(message.channel, key);
 
-            let query = message.content || '';
-            if (message.mentions && message.client && message.client.user) {
-                const botMention = new RegExp(\`<@!?\${message.client.user.id}>\`, 'g');
-                if (message.mentions.users && message.mentions.users.has(message.client.user.id)) {
-                    query = query.replace(botMention, '').trim();
-                }
-            }
-
-            if (!query) return;
-
-            let memory = await this.loadMemory(message.author.id);
-            
+            const memory = await this.loadMemory(message.author.id);
             const formattedQuery = {
                 role: "user",
-                content: \`\${message.author.username}: \${query}\`
+                content: \`\${message.author.username}: \${content}\`
             };
             
             const conversation = [
@@ -266,9 +300,11 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
                     role: "system",
                     content: this.config.instruction
                 },
-                ...memory,
+                ...memory.slice(-this.config.limit * 2),
                 formattedQuery
             ];
+
+            console.log('Sending conversation to API:', JSON.stringify(conversation, null, 2));
 
             const response = await this.apiCallWithRetries(
                 'https://api.electronhub.top/v1/chat/completions',
@@ -278,109 +314,78 @@ class ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot {
                     temperature: this.config.temperature,
                     presence_penalty: this.config.presence_penalty,
                     frequency_penalty: this.config.frequency_penalty,
-                    limit: this.config.limit
+                    max_tokens: this.config.maxLength
                 },
                 {
                     headers: {
-                        'Authorization': \`Bearer \${API_KEY}\`,
+                        'Authorization': \`Bearer \${process.env.ANUBIS_TOKEN || '${config.token}'}\`,
                         'Content-Type': 'application/json'
                     }
                 }
             );
 
-            let sentMessage = await message.reply({ 
-                content: '*thinking...*',
-                allowedMentions: { repliedUser: false }
-            });
-
-            let accumulatedResponse = '';
-            let lastUpdate = Date.now();
-            let updateBuffer = '';
-            const minUpdateLength = 100;
-            const updateDelay = 1000;
-            const stream = response.data;
-
-            stream.on('data', async chunk => {
-                try {
-                    const lines = chunk.toString().split('\\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const jsonStr = line.slice(6);
-                            if (jsonStr === '[DONE]') continue;
-                            
-                            const data = JSON.parse(jsonStr);
-                            if (!data.choices?.[0]?.delta?.content) continue;
-
-                            const newContent = data.choices[0].delta.content;
-                            accumulatedResponse += newContent;
-                            updateBuffer += newContent;
-                            
-                            if (updateBuffer.length >= minUpdateLength && 
-                                Date.now() - lastUpdate > updateDelay &&
-                                /[.!?]\\s*$|\\s$/.test(updateBuffer)) {
-                                
-                                await sentMessage.edit({
-                                    content: accumulatedResponse,
-                                    allowedMentions: { repliedUser: false }
-                                });
-                                updateBuffer = '';
-                                lastUpdate = Date.now();
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error('Streaming error:', e.message);
-                }
-            });
-
-            await new Promise((resolve, reject) => {
-                stream.on('end', resolve);
-                stream.on('error', reject);
-            });
-
-            await sentMessage.edit({
-                content: accumulatedResponse,
-                allowedMentions: { repliedUser: false }
-            });
-
-            memory.push({
-                role: "user",
-                content: \`\${message.author.username}: \${query}\`
-            });
-            memory.push({
-                role: "assistant",
-                content: accumulatedResponse
-            });
+            let botResponse = '';
             
-            if (memory.length > this.config.limit) {
-                memory = memory.slice(-this.config.limit);
+            if (response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
+                botResponse = response.data.choices[0].message.content;
+            } else {
+                throw new Error('Invalid API response format');
             }
-            await this.saveMemory(message.author.id, memory);
+
+            console.log('Bot response:', botResponse);
+
+            await message.reply({
+                content: botResponse,
+                allowedMentions: { repliedUser: false }
+            });
+
+            // Save to memory
+            const updatedMemory = [
+                ...memory,
+                formattedQuery,
+                {
+                    role: "assistant",
+                    content: botResponse
+                }
+            ];
+            
+            const memoryToSave = updatedMemory.length > this.config.limit * 2 
+                ? updatedMemory.slice(-this.config.limit * 2) 
+                : updatedMemory;
+                
+            await this.saveMemory(message.author.id, memoryToSave);
 
         } catch (error) {
-            console.error('Error:', error.message);
+            console.error('Process message error:', error);
+            console.error('Error stack:', error.stack);
+            
+            let errorMessage = 'Something went wrong, try again later.';
+            if (error.response && error.response.status === 401) {
+                errorMessage = 'API authentication failed. Please check the bot token.';
+            } else if (error.response && error.response.status === 429) {
+                errorMessage = 'Rate limit exceeded. Please wait a moment.';
+            }
+            
             await message.reply({
-                content: 'Something went wrong, try again later.',
+                content: errorMessage,
                 allowedMentions: { repliedUser: true }
-            }).catch(() => {});
+            }).catch(console.error);
         } finally {
             this.cleanupRequest(key);
         }
     }
 
     start() {
-        this.client.login('${config.token}');
+        console.log('Starting bot...');
+        this.client.login('${config.token}').catch(error => {
+            console.error('Failed to login:', error);
+        });
     }
 }
 
+// Create and start the bot
 const bot = new ${config.name.replace(/[^a-zA-Z0-9]/g, '')}Bot();
-bot.start();
-
-process.on('SIGINT', () => {
-    console.log('Bot shutting down...');
-    bot.client.destroy();
-    process.exit(0);
-});`;
+bot.start();`;
 
         await fs.writeFile(filePath, botCode);
     }
@@ -612,7 +617,7 @@ process.on('SIGINT', () => {
     async getBotById(botId) {
         try {
             const files = await fs.readdir(this.botsDir);
-            const botFiles = files.filter(file => file.endsWith('.js'));
+            const botFiles = files.filter(file => (file.endsWith('.js')));
 
             for (const fileName of botFiles) {
                 const filePath = path.join(this.botsDir, fileName);
